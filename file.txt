@@ -1,0 +1,9 @@
+Backend is pending for now.
+
+go mod init backend
+go get -u github.com/gin-gonic/gin
+go install github.com/air-verse/air@latest (for auto reload)
+go get github.com/joho/godotenv(for env file )
+go get github.com/golang-jwt/jwt/v5 (jwt auth)
+go get github.com/gin-contrib/cors (for cors setup)
+

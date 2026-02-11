@@ -1,0 +1,23 @@
+package utils
+
+import (
+	// "backend/internal/utils"
+	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+)
+
+func GetJwtSecret() []byte {
+    return []byte(GetEnv("SECRET_KEY"))
+}
+
+func GenerateToken(empID int, email string) (string, error) {
+	claims := jwt.MapClaims{
+		"emp_id": empID,
+		"email":  email,
+		"exp":    time.Now().Add(time.Hour * 24).Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(GetJwtSecret())
+}

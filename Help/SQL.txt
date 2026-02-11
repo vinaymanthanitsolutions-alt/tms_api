@@ -1,0 +1,35 @@
+CREATE DATABASE task_management;
+USE task_management;
+CREATE TABLE employee (
+    emp_id INT AUTO_INCREMENT PRIMARY KEY,
+    emp_code VARCHAR(20) NOT NULL UNIQUE,
+    emp_name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    phone VARCHAR(15) UNIQUE,
+    emp_password VARCHAR(255) NOT NULL,
+    department ENUM(
+        'HEAD',
+        'IT',
+        'SALES'
+    ) NOT NULL,
+    role ENUM(
+		'SUPER_ADMIN',
+        'ADMIN',
+        'PROJECT_MANAGER',
+        'TEAM_LEADER',
+        'DEVELOPER',
+        'TESTER'
+    ) NOT NULL,
+    status ENUM(
+        'ACTIVE',
+        'INACTIVE',
+        'SUSPENDED'
+    ) NOT NULL DEFAULT 'ACTIVE',
+    admin_id INT NOT NULL,
+    otp VARCHAR(10) DEFAULT NULL,
+    expire_at DATETIME DEFAULT NULL,
+    deleted_at DATETIME DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+SELECT * FROM EMPLOYEE ;
