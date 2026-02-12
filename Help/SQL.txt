@@ -50,7 +50,7 @@ http://localhost:8080/signup
 }
 {
   "emp_id": "A001",
-  "emp_name": "Aysuh Chauhan",
+  "emp_name": "Ayush Chauhan",
   "email": "ayush@example.com",
   "phone": "9876543210",
   "password": "Ayush@12",
