@@ -8,5 +8,6 @@ import (
 
 func Routes(server *gin.Engine) {
 	server.POST("/signup",controllers.Add)
-	server.POST("/login",controllers.SelectUser)
+	server.POST("/login",controllers.LoginUser)
+	server.POST("/forgetPassword",controllers.ForgetPassword)
 }

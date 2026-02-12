@@ -33,3 +33,28 @@ CREATE TABLE employee (
 );
 
 SELECT * FROM EMPLOYEE ;
+
+
+
+At Postman with signup:   
+http://localhost:8080/signup
+{
+  "emp_id": "SA001",
+  "emp_name": "Vaibhav Chauhan",
+  "email": "vaibhav@example.com",
+  "phone": "9876543210",
+  "password": "Vaibhav@12",
+  "department": "HEAD",
+  "role": "SUPER_ADMIN",
+  "admin_id": "1"
+}
+{
+  "emp_id": "A001",
+  "emp_name": "Aysuh Chauhan",
+  "email": "ayush@example.com",
+  "phone": "9876543210",
+  "password": "Ayush@12",
+  "department": "HEAD",
+  "role": "ADMIN",
+  "admin_id": "A001"
+}
