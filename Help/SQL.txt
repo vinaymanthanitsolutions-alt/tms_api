@@ -47,7 +47,7 @@ http://localhost:8080/signup
   "password": "Vaibhav@12",
   "department": "HEAD",
   "role": "SUPER_ADMIN",
-  "manager_id": "1"
+  "manager_id": null
 }
 {
   "emp_id": "A001",
