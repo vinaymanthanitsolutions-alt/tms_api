@@ -1,7 +1,7 @@
 package models
 
 type UserGet struct {
-	EmpID    string `json:"emp_id" binding:"required"`
+	EmpID      string `json:"emp_id" binding:"required"`
 	EmpName    string `json:"emp_name" binding:"required"`
 	Email      string `json:"email" binding:"required,email"`
 	Phone      string `json:"phone"`
