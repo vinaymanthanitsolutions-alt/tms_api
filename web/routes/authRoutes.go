@@ -9,4 +9,6 @@ import (
 func Routes(server *gin.Engine) {
 	server.POST("/signup",controllers.Add)
 	server.POST("/login",controllers.SelectUser)
+	server.POST("/verify-OTP",controllers.VerifyOtp)
+
 }
