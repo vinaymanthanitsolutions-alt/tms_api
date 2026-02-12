@@ -1,8 +1,8 @@
 CREATE DATABASE task_management;
 USE task_management;
 CREATE TABLE employee (
-    emp_id INT AUTO_INCREMENT PRIMARY KEY,
-    emp_code VARCHAR(20) NOT NULL UNIQUE,
+    sr_no INT AUTO_INCREMENT PRIMARY KEY,
+    emp_id VARCHAR(20) NOT NULL UNIQUE,
     emp_name VARCHAR(100) NOT NULL,
     email VARCHAR(100) NOT NULL UNIQUE,
     phone VARCHAR(15) UNIQUE,
@@ -13,7 +13,7 @@ CREATE TABLE employee (
         'SALES'
     ) NOT NULL,
     role ENUM(
-		'SUPER_ADMIN',
+        'SUPER_ADMIN',
         'ADMIN',
         'PROJECT_MANAGER',
         'TEAM_LEADER',
@@ -25,7 +25,7 @@ CREATE TABLE employee (
         'INACTIVE',
         'SUSPENDED'
     ) NOT NULL DEFAULT 'ACTIVE',
-    admin_id INT NOT NULL,
+    admin_id VARCHAR(20) NOT NULL,
     otp VARCHAR(10) DEFAULT NULL,
     expire_at DATETIME DEFAULT NULL,
     deleted_at DATETIME DEFAULT NULL,
@@ -34,4 +34,31 @@ CREATE TABLE employee (
 
 SELECT * FROM EMPLOYEE ;
 
-try
+
+
+At Postman with signup:   
+http://localhost:8080/signup
+{
+  "emp_id": "SA001",
+  "emp_name": "Vaibhav Chauhan",
+  "email": "vaibhav@example.com",
+  "phone": "9876543210",
+  "password": "Vaibhav@12",
+  "department": "HEAD",
+  "role": "SUPER_ADMIN",
+  "admin_id": "1"
+}
+{
+  "emp_id": "A001",
+  "emp_name": "Ayush Chauhan",
+  "email": "ayush@example.com",
+  "phone": "9876543210",
+  "password": "Ayush@12",
+  "department": "HEAD",
+  "role": "ADMIN",
+  "admin_id": "A001"
+}
+
+
+
+
