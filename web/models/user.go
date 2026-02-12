@@ -8,6 +8,6 @@ type UserGet struct {
 	Password   string `json:"password" binding:"required"`
 	Department string `json:"department"`
 	Role       string `json:"role" binding:"required"`
-	AdminID    string  `json:"admin_id"`
+	ManagerID    string  `json:"manager_id"`
 }
 

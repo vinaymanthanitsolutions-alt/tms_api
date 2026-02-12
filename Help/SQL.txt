@@ -25,11 +25,12 @@ CREATE TABLE employee (
         'INACTIVE',
         'SUSPENDED'
     ) NOT NULL DEFAULT 'ACTIVE',
-    admin_id VARCHAR(20) NOT NULL,
+    manager_id VARCHAR(20) NULL,
     otp VARCHAR(10) DEFAULT NULL,
     expire_at DATETIME DEFAULT NULL,
     deleted_at DATETIME DEFAULT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (manager_id) REFERENCES employee(emp_id)
 );
 
 SELECT * FROM EMPLOYEE ;
@@ -46,7 +47,7 @@ http://localhost:8080/signup
   "password": "Vaibhav@12",
   "department": "HEAD",
   "role": "SUPER_ADMIN",
-  "admin_id": "1"
+  "manager_id": "1"
 }
 {
   "emp_id": "A001",
@@ -56,7 +57,7 @@ http://localhost:8080/signup
   "password": "Ayush@12",
   "department": "HEAD",
   "role": "ADMIN",
-  "admin_id": "A001"
+  "manager_id": "SA001"
 }
 
 

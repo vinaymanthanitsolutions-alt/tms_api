@@ -40,7 +40,7 @@ func Add(c *gin.Context) {
 			emp_password,
 			department,
 			role,
-			admin_id
+			manager_id
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
@@ -53,7 +53,7 @@ func Add(c *gin.Context) {
 		string(hashedPassword),
 		data.Department,
 		data.Role,
-		data.AdminID, // ✅ string
+		data.ManagerID, // ✅ string
 	)
 	if err != nil {
 		utils.Failed(c, http.StatusConflict, "Employee ID, email or phone already exists")
