@@ -53,7 +53,7 @@ http://localhost:8080/signup
   "emp_id": "A001",
   "emp_name": "Ayush Chauhan",
   "email": "ayush@example.com",
-  "phone": "9876543210",
+  "phone": "9876543211",
   "password": "Ayush@12",
   "department": "HEAD",
   "role": "ADMIN",
