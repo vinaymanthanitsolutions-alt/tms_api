@@ -1,8 +1,8 @@
 CREATE DATABASE task_management;
 USE task_management;
 CREATE TABLE employee (
-    emp_id INT AUTO_INCREMENT PRIMARY KEY,
-    emp_code VARCHAR(20) NOT NULL UNIQUE,
+    sr_no INT AUTO_INCREMENT PRIMARY KEY,
+    emp_id VARCHAR(20) NOT NULL UNIQUE,
     emp_name VARCHAR(100) NOT NULL,
     email VARCHAR(100) NOT NULL UNIQUE,
     phone VARCHAR(15) UNIQUE,
@@ -25,7 +25,7 @@ CREATE TABLE employee (
         'INACTIVE',
         'SUSPENDED'
     ) NOT NULL DEFAULT 'ACTIVE',
-    admin_id INT NOT NULL,
+    admin_id VARCHAR(20) NOT NULL,
     otp VARCHAR(10) DEFAULT NULL,
     expire_at DATETIME DEFAULT NULL,
     deleted_at DATETIME DEFAULT NULL,

@@ -46,7 +46,7 @@ func Add(c *gin.Context) {
 
 	result, err := config.DB.Exec(
 		query,
-		data.EmpCode,
+		data.EmpID,
 		data.EmpName,
 		data.Email,
 		data.Phone,

@@ -26,7 +26,7 @@ func SelectUser(c *gin.Context) {
 	var empId string
 
 	err := config.DB.QueryRow(
-		`SELECT emp_code, emp_password FROM employee WHERE emp_code=? AND deleted_at IS NULL`,
+		`SELECT emp_code, emp_password FROM employee WHERE emp_id=? AND deleted_at IS NULL`,
 		input.EmpId,
 	).Scan(&empId, &storedPassword)
 
@@ -54,7 +54,7 @@ func SelectUser(c *gin.Context) {
 
 	// ✅ Store OTP in DB
 	_, err = config.DB.Exec(
-		"UPDATE employee SET otp = ?, expire_at = ? WHERE emp_code = ?",
+		"UPDATE employee SET otp = ?, expire_at = ? WHERE emp_id = ?",
 		otp,
 		otpExpiry,
 		empId,
@@ -68,4 +68,8 @@ func SelectUser(c *gin.Context) {
 		"empID":   empId,
 		"success": true,
 	})
+}
+
+func GetUser (c *gin.Context){
+	
 }

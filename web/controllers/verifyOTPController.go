@@ -34,7 +34,7 @@ func VerifyOtp(c *gin.Context) {
 	err := config.DB.QueryRow(`
 		SELECT otp, expire_at,role,email
 		FROM employee
-		WHERE emp_code=?
+		WHERE emp_id=?
 	`, req.EmpID).Scan(&dbOTP, &expiry, &role, &email)
 
 
@@ -70,7 +70,7 @@ func VerifyOtp(c *gin.Context) {
 	_, err = config.DB.Exec(`
 	UPDATE employee
 	SET otp=NULL, expire_at=NULL
-	WHERE emp_code=?
+	WHERE emp_id=?
 	`, req.EmpID)
 	
 	if err != nil {
