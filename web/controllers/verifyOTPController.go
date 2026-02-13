@@ -64,17 +64,10 @@ func VerifyOtp(c *gin.Context) {
 	}
 
 	// clear OTP after successful verification
-	_, err = config.DB.Exec(`
-<<<<<<< HEAD
-	UPDATE employee
-	SET otp=NULL, expire_at=NULL
-	WHERE emp_id=?
-=======
-		UPDATE employee
+	_, err = config.DB.Exec(
+		`UPDATE employee
 		SET otp = NULL, expire_at = NULL
-		WHERE emp_id = ?
->>>>>>> adbc3ce0adaa7acb4650904d0d2287d0afa5c8bb
-	`, req.EmpID)
+		WHERE emp_id = ?`, req.EmpID)
 
 	if err != nil {
 		log.Println("OTP update error:", err)
