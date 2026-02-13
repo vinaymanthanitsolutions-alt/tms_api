@@ -21,3 +21,14 @@ type UserShow struct {
 	Status    string  `json:"status"`
 }
 
+type UserUpdate struct {
+	EmpName    string `json:"emp_name"`
+	Email      string `json:"email"`
+	Phone      string `json:"phone"`
+	Password   string `json:"password"`
+	Department string `json:"department"`
+	Role       string `json:"role"`
+	ManagerID  string `json:"manager_id"`
+}
+
+
