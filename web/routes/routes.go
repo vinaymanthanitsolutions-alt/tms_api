@@ -8,4 +8,5 @@ import (
 
 func Router(server *gin.Engine) {
 	server.GET("/emp/:emp_id", controllers.ShowEmployees)
+	server.DELETE("/emp/:emp_id",controllers.DeleteUser)
 }
