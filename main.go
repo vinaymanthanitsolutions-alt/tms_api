@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -18,8 +19,7 @@ func main() {
 
 	port := os.Getenv("APP_PORT")
 	ginMode := os.Getenv("GIN_MODE")
-	
-	
+
 	if port == "" {
 		port = "8080"
 	}
@@ -33,12 +33,15 @@ func main() {
 
 	r := gin.Default()
 
+	r.Use(cors.New(config.CorsConfig))
+
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"message": "Backend running with Gin",
 		})
 	})
 	routes.Routes(r)
+	routes.Router(r)
 
 	log.Println("Server running on port:", port)
 	log.Println("Gin Mode:", ginMode)

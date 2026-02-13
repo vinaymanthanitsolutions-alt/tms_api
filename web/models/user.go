@@ -11,3 +11,13 @@ type UserGet struct {
 	ManagerID    string  `json:"manager_id"`
 }
 
+type UserShow struct {
+	EmpID      string `json:"emp_id" binding:"required"`
+	EmpName    string `json:"emp_name" binding:"required"`
+	Phone      string `json:"phone"`
+	Password   string `json:"password" binding:"required"`
+	Department string `json:"department"`
+	Role       string `json:"role" binding:"required"`
+	Status    string  `json:"status"`
+}
+

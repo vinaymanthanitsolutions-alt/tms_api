@@ -56,12 +56,71 @@ func Add(c *gin.Context) {
 		data.ManagerID, // ✅ string
 	)
 	if err != nil {
-		utils.Failed(c, http.StatusConflict, "Employee ID, email or phone already exists")
-		return
-	}
+	c.JSON(http.StatusInternalServerError, gin.H{
+		"error": err.Error(),
+	})
+	return
+}
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Employee created successfully",
 	})
 }
 
+
+
+func ShowEmployees(c *gin.Context) {
+
+	managerID := c.Param("emp_id")
+	if managerID == "" {
+	utils.Failed(c, http.StatusBadRequest, "emp_id is required")
+	return
+	}
+
+	var employees []models.UserShow
+
+	rows, err := config.DB.Query(`
+		SELECT 
+			emp_id,
+			emp_name,
+			phone,
+			department,
+			role,
+			status
+		FROM employee
+		WHERE manager_id = ? and deleted_at IS NULL
+	`,managerID)
+	if err != nil {
+		utils.Failed(c, http.StatusInternalServerError, "Failed to fetch employees")
+		return
+	}
+	defer rows.Close()
+
+	
+
+	for rows.Next() {
+		var emp models.UserShow
+
+		err := rows.Scan(
+			&emp.EmpID,
+			&emp.EmpName,
+			// &emp.Email,
+			&emp.Phone,
+			&emp.Department,
+			&emp.Role,
+			&emp.Status,
+			// &emp.ManagerID,
+		)
+		if err != nil {
+			utils.Failed(c, http.StatusInternalServerError, "Error scanning employees")
+			return
+		}
+
+		employees = append(employees, emp)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":   true,
+		"employees": employees,
+	})
+}
