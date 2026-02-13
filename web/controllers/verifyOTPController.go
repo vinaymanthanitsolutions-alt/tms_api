@@ -31,7 +31,7 @@ func VerifyOtp(c *gin.Context) {
 	var role string
 	var email string
 
-	// sql query to obtain data from table (UPDATED COLUMN NAME)
+	// sql query to obtain data from table 
 	err := config.DB.QueryRow(`
 		SELECT otp, expire_at, role, email
 		FROM employee
@@ -64,10 +64,11 @@ func VerifyOtp(c *gin.Context) {
 	}
 
 	// clear OTP after successful verification
-	_, err = config.DB.Exec(
-		`UPDATE employee
+	_, err = config.DB.Exec(`
+		UPDATE employee
 		SET otp = NULL, expire_at = NULL
-		WHERE emp_id = ?`, req.EmpID)
+		WHERE emp_id = ?
+	`, req.EmpID)
 
 	if err != nil {
 		log.Println("OTP update error:", err)
