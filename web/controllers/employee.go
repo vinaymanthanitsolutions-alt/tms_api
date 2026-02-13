@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"net/http"
+	"time"
 
 	"backend/internal/config"
 	"backend/internal/utils"
@@ -14,13 +15,11 @@ import (
 func Add(c *gin.Context) {
 	var data models.UserGet
 
-	// 1️⃣ Bind JSON
 	if err := c.ShouldBindJSON(&data); err != nil {
 		utils.Failed(c, http.StatusBadRequest, "Invalid request format")
 		return
 	}
 
-	// 2️⃣ Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword(
 		[]byte(data.Password),
 		bcrypt.DefaultCost,
@@ -30,7 +29,6 @@ func Add(c *gin.Context) {
 		return
 	}
 
-	// 3️⃣ Insert employee
 	query := `
 		INSERT INTO employee (
 			emp_id,
@@ -53,7 +51,7 @@ func Add(c *gin.Context) {
 		string(hashedPassword),
 		data.Department,
 		data.Role,
-		data.ManagerID, // ✅ string
+		data.ManagerID,
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -129,7 +127,6 @@ func DeleteUser(c *gin.Context) {
 		return
 	}
 
-
 	query := `UPDATE employee SET deleted_at = NOW() WHERE emp_id=?`
 	result, err := config.DB.Exec(query, empId)
 	if err != nil {
@@ -150,18 +147,15 @@ func DeleteUser(c *gin.Context) {
 
 func UpdateProfile(c *gin.Context) {
 
-	// 1️⃣ Get emp_id from URL param
 	empID := c.Param("emp_id")
 
 	var data models.UserUpdate
 
-	// 2️⃣ Bind JSON
 	if err := c.ShouldBindJSON(&data); err != nil {
 		utils.Failed(c, http.StatusBadRequest, "Invalid request format")
 		return
 	}
 
-	// 3️⃣ Check if employee exists
 	var exists string
 	err := config.DB.QueryRow(
 		"SELECT emp_id FROM employee WHERE emp_id = ?",
@@ -173,7 +167,6 @@ func UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	// 4️⃣ If password provided → hash it
 	var hashedPassword string
 	if data.Password != "" {
 		hash, err := bcrypt.GenerateFromPassword(
@@ -187,7 +180,6 @@ func UpdateProfile(c *gin.Context) {
 		hashedPassword = string(hash)
 	}
 
-	// 5️⃣ Update query
 	if data.Password != "" {
 
 		// Update including password
@@ -242,5 +234,68 @@ func UpdateProfile(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Profile updated successfully",
+	})
+}
+
+func UpdatePassword(c *gin.Context) {
+
+	var input struct {
+		Email       string `json:"email"`
+		OTP         string `json:"otp"`
+		NewPassword string `json:"new_password"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		utils.Failed(c, http.StatusBadRequest, "Invalid payload")
+		return
+	}
+
+	var dbOTP string
+	var expiry time.Time
+
+	err := config.DB.QueryRow(
+		`SELECT otp, expire_at FROM employee WHERE email = ?`,
+		input.Email,
+	).Scan(&dbOTP, &expiry)
+
+	if err != nil {
+		utils.Failed(c, http.StatusNotFound, "Email not registered")
+		return
+	}
+
+	if dbOTP != input.OTP {
+		utils.Failed(c, http.StatusUnauthorized, "Invalid OTP")
+		return
+	}
+
+	if time.Now().After(expiry) {
+		utils.Failed(c, http.StatusUnauthorized, "OTP expired")
+		return
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword(
+		[]byte(input.NewPassword),
+		bcrypt.DefaultCost,
+	)
+	if err != nil {
+		utils.Failed(c, http.StatusInternalServerError, "Failed to hash password")
+		return
+	}
+
+	_, err = config.DB.Exec(
+		`UPDATE employee 
+		 SET emp_password = ?, otp = NULL, expire_at = NULL 
+		 WHERE email = ?`,
+		string(hashedPassword),
+		input.Email,
+	)
+
+	if err != nil {
+		utils.Failed(c, http.StatusInternalServerError, "Failed to update password")
+		return
+	}
+
+	utils.Success(c, gin.H{
+		"message": "Password updated successfully",
 	})
 }
