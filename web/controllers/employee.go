@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"database/sql"
 	"net/http"
 	"time"
 
@@ -67,31 +68,46 @@ func Add(c *gin.Context) {
 
 func ShowEmployees(c *gin.Context) {
 
-	managerID := c.Param("emp_id")
+	// http://localhost:8080/emp?emp_id=SA001&status=ALL    API Call Example
+	managerID := c.Query("emp_id")
 	if managerID == "" {
 		utils.Failed(c, http.StatusBadRequest, "emp_id is required")
 		return
 	}
 
-	var employees []models.UserShow
+	status := c.Query("status")
+	if status == "" {
+		utils.Failed(c, http.StatusBadRequest, "status is required")
+		return
+	}
 
-	rows, err := config.DB.Query(`
-		SELECT 
-			emp_id,
-			emp_name,
-			email,
-			phone,
-			department,
-			role,
-			status
-		FROM employee
-		WHERE manager_id = ?
-	`, managerID)
+	var (
+		query string
+		rows  *sql.Rows
+		err   error
+	)
+
+	if status == "ALL" {
+		query = `SELECT emp_id,emp_name,email,phone,department,role,status 
+		         FROM employee 
+		         WHERE manager_id = ?`
+
+		rows, err = config.DB.Query(query, managerID)
+	} else {
+		query = `SELECT emp_id,emp_name,email,phone,department,role,status 
+		         FROM employee 
+		         WHERE manager_id = ? AND status = ?`
+
+		rows, err = config.DB.Query(query, managerID, status)
+	}
+
 	if err != nil {
 		utils.Failed(c, http.StatusInternalServerError, "Failed to fetch employees")
 		return
 	}
 	defer rows.Close()
+
+	var employees []models.UserShow
 
 	for rows.Next() {
 		var emp models.UserShow
@@ -104,7 +120,6 @@ func ShowEmployees(c *gin.Context) {
 			&emp.Department,
 			&emp.Role,
 			&emp.Status,
-			// &emp.ManagerID,
 		)
 		if err != nil {
 			utils.Failed(c, http.StatusInternalServerError, "Error scanning employees")
@@ -112,6 +127,11 @@ func ShowEmployees(c *gin.Context) {
 		}
 
 		employees = append(employees, emp)
+	}
+
+	if err = rows.Err(); err != nil {
+		utils.Failed(c, http.StatusInternalServerError, "Row iteration error")
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -174,7 +194,6 @@ func RestoreUser(c *gin.Context) {
 
 	utils.Success(c, "User restored successfully")
 }
-
 
 func UpdateProfile(c *gin.Context) {
 
