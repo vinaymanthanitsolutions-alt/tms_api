@@ -2,7 +2,9 @@ package controllers
 
 import (
 	"database/sql"
+	"math"
 	"net/http"
+	"strconv"
 	"time"
 
 	"backend/internal/config"
@@ -68,7 +70,8 @@ func Add(c *gin.Context) {
 
 func ShowEmployees(c *gin.Context) {
 
-	// http://localhost:8080/emp?emp_id=SA001&status=ALL    API Call Example
+	// GET /emp?emp_id=SA001&status=ACTIVE&page=2&limit=5    example api call
+
 	managerID := c.Query("emp_id")
 	if managerID == "" {
 		utils.Failed(c, http.StatusBadRequest, "emp_id is required")
@@ -81,24 +84,48 @@ func ShowEmployees(c *gin.Context) {
 		return
 	}
 
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "10")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 {
+		limit = 10
+	}
+
+	offset := (page - 1) * limit
+
 	var (
-		query string
-		rows  *sql.Rows
-		err   error
+		query      string
+		countQuery string
+		rows       *sql.Rows
+		total      int
 	)
 
 	if status == "ALL" {
-		query = `SELECT emp_id,emp_name,email,phone,department,role,status 
-		         FROM employee 
-		         WHERE manager_id = ?`
+		countQuery = `SELECT COUNT(*) FROM employee WHERE manager_id = ?`
+		err = config.DB.QueryRow(countQuery, managerID).Scan(&total)
 
-		rows, err = config.DB.Query(query, managerID)
+		query = `SELECT emp_id,emp_name,email,phone,department,role,status
+		         FROM employee
+		         WHERE manager_id = ?
+		         LIMIT ? OFFSET ?`
+
+		rows, err = config.DB.Query(query, managerID, limit, offset)
 	} else {
-		query = `SELECT emp_id,emp_name,email,phone,department,role,status 
-		         FROM employee 
-		         WHERE manager_id = ? AND status = ?`
+		countQuery = `SELECT COUNT(*) FROM employee WHERE manager_id = ? AND status = ?`
+		err = config.DB.QueryRow(countQuery, managerID, status).Scan(&total)
 
-		rows, err = config.DB.Query(query, managerID, status)
+		query = `SELECT emp_id,emp_name,email,phone,department,role,status
+		         FROM employee
+		         WHERE manager_id = ? AND status = ?
+		         LIMIT ? OFFSET ?`
+
+		rows, err = config.DB.Query(query, managerID, status, limit, offset)
 	}
 
 	if err != nil {
@@ -112,7 +139,7 @@ func ShowEmployees(c *gin.Context) {
 	for rows.Next() {
 		var emp models.UserShow
 
-		err := rows.Scan(
+		if err := rows.Scan(
 			&emp.EmpID,
 			&emp.EmpName,
 			&emp.Email,
@@ -120,8 +147,7 @@ func ShowEmployees(c *gin.Context) {
 			&emp.Department,
 			&emp.Role,
 			&emp.Status,
-		)
-		if err != nil {
+		); err != nil {
 			utils.Failed(c, http.StatusInternalServerError, "Error scanning employees")
 			return
 		}
@@ -129,14 +155,15 @@ func ShowEmployees(c *gin.Context) {
 		employees = append(employees, emp)
 	}
 
-	if err = rows.Err(); err != nil {
-		utils.Failed(c, http.StatusInternalServerError, "Row iteration error")
-		return
-	}
-
 	c.JSON(http.StatusOK, gin.H{
-		"success":   true,
-		"employees": employees,
+		"success": true,
+		"data":    employees,
+		"pagination": gin.H{
+			"page":        page,
+			"limit":       limit,
+			"total":       total,
+			"total_pages": int(math.Ceil(float64(total) / float64(limit))),
+		},
 	})
 }
 
