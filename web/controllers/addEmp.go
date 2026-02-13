@@ -77,12 +77,19 @@ func ShowEmployees(c *gin.Context) {
 	return
 	}
 
+	// managerID, exists := c.Get("emp_id")
+	// if !exists {
+	// 	utils.Failed(c, http.StatusUnauthorized, "Unauthorized")
+	// 	return
+	// }
+
 	var employees []models.UserShow
 
 	rows, err := config.DB.Query(`
 		SELECT 
 			emp_id,
 			emp_name,
+			email,
 			phone,
 			department,
 			role,
@@ -104,7 +111,7 @@ func ShowEmployees(c *gin.Context) {
 		err := rows.Scan(
 			&emp.EmpID,
 			&emp.EmpName,
-			// &emp.Email,
+			&emp.Email,
 			&emp.Phone,
 			&emp.Department,
 			&emp.Role,
