@@ -81,6 +81,7 @@ func ShowEmployees(c *gin.Context) {
 		SELECT 
 			emp_id,
 			emp_name,
+			email,
 			phone,
 			department,
 			role,
@@ -100,7 +101,7 @@ func ShowEmployees(c *gin.Context) {
 		err := rows.Scan(
 			&emp.EmpID,
 			&emp.EmpName,
-			// &emp.Email,
+			&emp.Email,
 			&emp.Phone,
 			&emp.Department,
 			&emp.Role,

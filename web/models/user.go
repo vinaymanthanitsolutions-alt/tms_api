@@ -14,6 +14,7 @@ type UserGet struct {
 type UserShow struct {
 	EmpID      string `json:"emp_id" binding:"required"`
 	EmpName    string `json:"emp_name" binding:"required"`
+	Email    string `json:"email" binding:"required"`
 	Phone      string `json:"phone"`
 	Password   string `json:"password" binding:"required"`
 	Department string `json:"department"`
