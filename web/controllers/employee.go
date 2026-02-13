@@ -85,7 +85,7 @@ func ShowEmployees(c *gin.Context) {
 			role,
 			status
 		FROM employee
-		WHERE manager_id = ? and deleted_at IS NULL
+		WHERE manager_id = ?
 	`, managerID)
 	if err != nil {
 		utils.Failed(c, http.StatusInternalServerError, "Failed to fetch employees")
@@ -127,7 +127,7 @@ func DeleteUser(c *gin.Context) {
 		return
 	}
 
-	query := `UPDATE employee SET deleted_at = NOW() WHERE emp_id=?`
+	query := `UPDATE employee SET deleted_at = NOW(),status = 'SUSPENDED' WHERE emp_id=?`
 	result, err := config.DB.Exec(query, empId)
 	if err != nil {
 		utils.Failed(c, 501, "Database executing query error ")
@@ -144,6 +144,37 @@ func DeleteUser(c *gin.Context) {
 	utils.Success(c, "User data deleted successfully")
 
 }
+
+func RestoreUser(c *gin.Context) {
+	empId := c.Param("emp_id")
+	if empId == "" {
+		utils.Failed(c, http.StatusBadRequest, "emp_id is required")
+		return
+	}
+
+	query := `
+	UPDATE employee 
+	SET deleted_at = NULL,
+	    status = 'ACTIVE'
+	WHERE emp_id = ?
+	  AND deleted_at IS NOT NULL
+	`
+
+	result, err := config.DB.Exec(query, empId)
+	if err != nil {
+		utils.Failed(c, http.StatusInternalServerError, "Database error")
+		return
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		utils.Failed(c, http.StatusNotFound, "User not found or already active")
+		return
+	}
+
+	utils.Success(c, "User restored successfully")
+}
+
 
 func UpdateProfile(c *gin.Context) {
 
@@ -191,7 +222,8 @@ func UpdateProfile(c *gin.Context) {
 				department = ?,
 				role = ?,
 				manager_id = ?,
-				emp_password = ?
+				emp_password = ?,
+				status =?
 			WHERE emp_id = ?
 		`,
 			data.EmpName,
@@ -201,6 +233,7 @@ func UpdateProfile(c *gin.Context) {
 			data.Role,
 			data.ManagerID,
 			hashedPassword,
+			data.Status,
 			empID,
 		)
 
@@ -214,7 +247,8 @@ func UpdateProfile(c *gin.Context) {
 				phone = ?,
 				department = ?,
 				role = ?,
-				manager_id = ?
+				manager_id = ?,
+				status =?
 			WHERE emp_id = ?
 		`,
 			data.EmpName,
@@ -223,6 +257,7 @@ func UpdateProfile(c *gin.Context) {
 			data.Department,
 			data.Role,
 			data.ManagerID,
+			data.Status,
 			empID,
 		)
 	}
