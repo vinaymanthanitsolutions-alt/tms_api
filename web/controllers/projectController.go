@@ -238,3 +238,65 @@ func GetProjectsByAdmin(c *gin.Context) {
 
 	utils.Success(c, projects)
 }
+
+
+func GetProjectTeamDetails(c *gin.Context) {
+	rows, err := config.DB.Query(`
+		SELECT 
+			p.project_id,
+			p.name,
+			t.team_id,
+			e_tl.emp_name AS team_leader,
+			e.emp_name ,
+			e.role,
+			e.department
+		FROM project p
+		LEFT JOIN team t ON t.project_id = p.project_id
+		LEFT JOIN employee e_tl ON e_tl.emp_id = t.team_leader_id
+		LEFT JOIN team_members tm ON tm.team_id = t.team_id
+		LEFT JOIN employee e ON e.emp_id = tm.employee_id
+		ORDER BY p.project_id, t.team_id, e.role
+	`)
+
+	if err != nil {
+		utils.Failed(c, 500, "Failed to fetch project details")
+		return
+	}
+	defer rows.Close()
+
+	var results []gin.H
+
+	for rows.Next() {
+    var projectID, projectName string
+    var teamID, leader, empName, role, dept sql.NullString
+
+    err := rows.Scan(
+        &projectID,
+        &projectName,
+        &teamID,
+        &leader,
+        &empName,
+        &role,
+        &dept,
+    )
+
+    if err != nil {
+        utils.Failed(c, 500, "Error reading data")
+        return
+    }
+
+    project := gin.H{
+        "project_id": projectID,
+        "project_name": projectName,
+        "team_id": teamID.String,
+        "team_leader": leader.String,
+        "employee_name": empName.String,
+        "role": role.String,
+        "department": dept.String,
+    }
+
+    results = append(results, project)
+}
+
+	utils.Success(c, results)
+}
