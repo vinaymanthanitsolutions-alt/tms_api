@@ -56,6 +56,7 @@ func Add(c *gin.Context) {
 		data.ManagerID,
 	)
 	if err != nil {
+
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
@@ -67,13 +68,26 @@ func Add(c *gin.Context) {
 	})
 }
 
+
+
+
+
+
 func ShowEmployees(c *gin.Context) {
 
 	managerID := c.Query("emp_id")
 	if managerID == "" {
-		utils.Failed(c, http.StatusBadRequest, "emp_id is required")
-		return
+
+	utils.Failed(c, http.StatusBadRequest, "emp_id is required")
+	return
 	}
+
+	// managerID, exists := c.Get("emp_id")
+	// if !exists {
+	// 	utils.Failed(c, http.StatusUnauthorized, "Unauthorized")
+	// 	return
+	// }
+
 
 	status := c.Query("status")
 	if status == "" {
@@ -164,6 +178,7 @@ func ShowEmployees(c *gin.Context) {
 			"total_pages": int(math.Ceil(float64(total) / float64(limit))),
 		},
 	})
+
 }
 
 func DeleteUser(c *gin.Context) {

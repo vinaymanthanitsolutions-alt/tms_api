@@ -43,6 +43,7 @@ func main() {
 	routes.Routes(r)
 	routes.Router(r)
 	routes.TeamRouter(r)
+	routes.ProjectRoutes(r)
 
 	log.Println("Server running on port:", port)
 	log.Println("Gin Mode:", ginMode)
