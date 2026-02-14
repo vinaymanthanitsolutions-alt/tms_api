@@ -62,4 +62,105 @@ http://localhost:8080/signup
 
 
 
+INSERT INTO `task_management`.`employee` (`emp_id`, `emp_name`, `email`, `phone`, `emp_password`, `department`, `role`, `manager_id`) VALUES ('PM001', 'Sarthak', 'sarthak@example.com', '9876543213', 'h', 'IT', 'PROJECT_MANAGER', 'A001');
+INSERT INTO `task_management`.`employee` (`emp_id`, `emp_name`, `email`, `phone`, `emp_password`, `department`, `role`, `manager_id`) VALUES ('TM001', 'Divya', 'Divya@example.com', '9876543214', 'h', 'IT', 'TEAM_LEADER', 'A001');
+INSERT INTO `task_management`.`employee` (`emp_id`, `emp_name`, `email`, `phone`, `emp_password`, `department`, `role`, `manager_id`) VALUES ('DV001', 'Prince', 'prince@example.com', '9876543215', 'h', 'IT', 'DEVELOPER', 'PM001');
+INSERT INTO `task_management`.`employee` (`emp_id`, `emp_name`, `email`, `phone`, `emp_password`, `department`, `role`, `manager_id`) VALUES ('TS001', 'Arush', 'Arush@example.com', '9876543216', 'h', 'IT', 'TESTER', 'PM001');
+
+
+
+CREATE TABLE project (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    project_id VARCHAR(20) unique NOT NULL,
+
+    name VARCHAR(200) NOT NULL,
+    description TEXT,
+
+    created_by VARCHAR(20) NOT NULL,
+    pm_id VARCHAR(20) NOT NULL,
+
+    status ENUM('PLANNING','ACTIVE','COMPLETED') DEFAULT 'PLANNING',
+    deadline DATETIME NULL,
+
+    FOREIGN KEY (created_by) REFERENCES employee(emp_id),
+    FOREIGN KEY (pm_id) REFERENCES employee(emp_id)
+);
+
+
+INSERT INTO `task_management`.`project` (`project_id`, `name`, `description`, `created_by`, `pm_id`) VALUES ('PR001', 'Task Management', 'This is a big project', 'A001', 'PM001');
+
+
+
+
+
+CREATE TABLE team (
+    team_id varchar(25) PRIMARY KEY,
+    project_id VARCHAR(20) NOT NULL,
+    team_leader_id varchar(20) NOT NULL,
+
+    FOREIGN KEY (project_id) REFERENCES project(project_id),
+    FOREIGN KEY (team_leader_id) REFERENCES employee(emp_id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);  
+
+INSERT INTO `task_management`.`team` (`team_id`, `project_id`, `team_leader_id`) VALUES ('TM001', 'PR001', 'TM001');
+
+
+
+
+
+
+
+CREATE TABLE team_members (
+    team_id varchar(30),
+    employee_id varchar(30),
+
+    PRIMARY KEY (team_id, employee_id),
+
+    FOREIGN KEY (team_id) REFERENCES team(team_id),
+    FOREIGN KEY (employee_id) REFERENCES employee(emp_id)
+);
+
+INSERT INTO `task_management`.`team_members` (`team_id`, `employee_id`) VALUES ('TM001', 'DV001');
+INSERT INTO `task_management`.`team_members` (`team_id`, `employee_id`) VALUES ('TM001', 'TS001');
+
+
+
+
+
+
+
+CREATE TABLE tasks (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    project_id varchar(30) NOT NULL,
+    team_id varchar(30) NOT NULL,
+
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+
+    assigned_to varchar(30) NOT NULL,
+    created_by varchar(30) NOT NULL,
+
+    status ENUM(
+        'TODO',
+        'IN_PROGRESS',
+        'DEV_DONE',
+        'TESTING',
+        'COMPLETED'
+    ) DEFAULT 'TODO',
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+        deadline DATETIME NULL,
+
+
+    FOREIGN KEY (project_id) REFERENCES project(project_id),
+    FOREIGN KEY (team_id) REFERENCES team(team_id),
+    FOREIGN KEY (assigned_to) REFERENCES employee(emp_id),
+    FOREIGN KEY (created_by) REFERENCES employee(emp_id)
+);
+INSERT INTO `task_management`.`tasks` (`project_id`, `team_id`, `title`, `description`, `assigned_to`, `created_by`) VALUES ('PR001', 'TM001', 'Home page make', 'Add on home page ', 'DV001', 'PM001');
+
 
