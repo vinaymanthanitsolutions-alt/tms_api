@@ -13,7 +13,7 @@ func ProjectRoutes(r *gin.Engine) {
 	project.PUT("/:project_id", controllers.UpdateProject)
 	project.DELETE("/:project_id", controllers.DeleteProject)
 
-	project.GET("/:project_id", controllers.GetProjectByID)
+	project.GET("/:pm_id", controllers.GetProjectsByPM)
 	project.GET("/", controllers.GetAllProjects)
 
 	project.PUT("/assign/:project_id", controllers.AssignProjectManager)
