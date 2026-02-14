@@ -18,4 +18,5 @@ func ProjectRoutes(r *gin.Engine) {
 
 	project.PUT("/assign/:project_id", controllers.AssignProjectManager)
 	project.GET("/admin/:admin_id", controllers.GetProjectsByAdmin)
+	project.GET("/details", controllers.GetProjectTeamDetails)
 }
