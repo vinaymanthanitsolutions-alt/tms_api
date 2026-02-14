@@ -162,7 +162,7 @@ CREATE TABLE tasks (
     FOREIGN KEY (created_by) REFERENCES employee(emp_id)
 );
 INSERT INTO `task_management`.`tasks` (`project_id`, `team_id`, `title`, `description`, `assigned_to`, `created_by`) VALUES ('PR001', 'TM001', 'Home page make', 'Add on home page ', 'DV001', 'PM001');
-
+ALTER TABLE project modify pm_id varchar(20) null;
 
 // dummy data
 
