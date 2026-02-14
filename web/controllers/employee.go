@@ -4,7 +4,6 @@ import (
 	"math"
 	"net/http"
 	"strconv"
-	"time"
 
 	"backend/internal/config"
 	"backend/internal/utils"
@@ -68,7 +67,6 @@ func Add(c *gin.Context) {
 	})
 }
 
-
 func ShowEmployees(c *gin.Context) {
 
 	// GET /emp?emp_id=SA001&status=ACTIVE&page=2&limit=5&search=ayu example api call
@@ -76,8 +74,8 @@ func ShowEmployees(c *gin.Context) {
 	managerID := c.Query("emp_id")
 	if managerID == "" {
 
-	utils.Failed(c, http.StatusBadRequest, "emp_id is required")
-	return
+		utils.Failed(c, http.StatusBadRequest, "emp_id is required")
+		return
 	}
 
 	// managerID, exists := c.Get("emp_id")
@@ -85,7 +83,6 @@ func ShowEmployees(c *gin.Context) {
 	// 	utils.Failed(c, http.StatusUnauthorized, "Unauthorized")
 	// 	return
 	// }
-
 
 	status := c.Query("status")
 	if status == "" {
@@ -327,68 +324,5 @@ func UpdateProfile(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Profile updated successfully",
-	})
-}
-
-func UpdatePassword(c *gin.Context) {
-
-	var input struct {
-		Email       string `json:"email"`
-		OTP         string `json:"otp"`
-		NewPassword string `json:"new_password"`
-	}
-
-	if err := c.ShouldBindJSON(&input); err != nil {
-		utils.Failed(c, http.StatusBadRequest, "Invalid payload")
-		return
-	}
-
-	var dbOTP string
-	var expiry time.Time
-
-	err := config.DB.QueryRow(
-		`SELECT otp, expire_at FROM employee WHERE email = ?`,
-		input.Email,
-	).Scan(&dbOTP, &expiry)
-
-	if err != nil {
-		utils.Failed(c, http.StatusNotFound, "Email not registered")
-		return
-	}
-
-	if dbOTP != input.OTP {
-		utils.Failed(c, http.StatusUnauthorized, "Invalid OTP")
-		return
-	}
-
-	if time.Now().After(expiry) {
-		utils.Failed(c, http.StatusUnauthorized, "OTP expired")
-		return
-	}
-
-	hashedPassword, err := bcrypt.GenerateFromPassword(
-		[]byte(input.NewPassword),
-		bcrypt.DefaultCost,
-	)
-	if err != nil {
-		utils.Failed(c, http.StatusInternalServerError, "Failed to hash password")
-		return
-	}
-
-	_, err = config.DB.Exec(
-		`UPDATE employee 
-		 SET emp_password = ?, otp = NULL, expire_at = NULL 
-		 WHERE email = ?`,
-		string(hashedPassword),
-		input.Email,
-	)
-
-	if err != nil {
-		utils.Failed(c, http.StatusInternalServerError, "Failed to update password")
-		return
-	}
-
-	utils.Success(c, gin.H{
-		"message": "Password updated successfully",
 	})
 }
