@@ -4,6 +4,7 @@ import (
 	"backend/internal/config"
 	"backend/internal/utils"
 	"backend/web/models"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -89,19 +90,41 @@ func DeleteProject(c *gin.Context) {
 	utils.Success(c, "Project deleted")
 }
 
-func GetProjectByID(c *gin.Context) {
-	id := c.Param("project_id")
+func GetProjectsByPM(c *gin.Context) {
+	pmID := c.Param("pm_id")
 
-	rows, err := config.DB.Query(
-		"SELECT * FROM project WHERE project_id=?",
-		id,
-	)
+	log.Printf("PM ID = [%s]\n", pmID)
+
+	rows, err := config.DB.Query(`
+		SELECT project_id, name, status
+		FROM project
+		WHERE pm_id = ?
+	`, pmID)
+
 	if err != nil {
-		utils.Failed(c, http.StatusInternalServerError, "Fetch failed")
+		utils.Failed(c, 500, "Failed to fetch projects")
 		return
 	}
+	defer rows.Close()
 
-	utils.Success(c, rows)
+	projects := []map[string]interface{}{}
+
+	for rows.Next() {
+		var id, name, status string
+
+		if err := rows.Scan(&id, &name, &status); err != nil {
+			utils.Failed(c, 500, "Scan error")
+			return
+		}
+
+		projects = append(projects, gin.H{
+			"project_id": id,
+			"name":       name,
+			"status":     status,
+		})
+	}
+
+	utils.Success(c, projects)
 }
 
 func GetAllProjects(c *gin.Context) {
