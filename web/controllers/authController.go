@@ -118,3 +118,65 @@ func ForgetPassword(c *gin.Context) {
 	})
 }
 
+func UpdatePassword(c *gin.Context) {
+
+	var input struct {
+		Email       string `json:"email"`
+		OTP         string `json:"otp"`
+		NewPassword string `json:"new_password"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		utils.Failed(c, http.StatusBadRequest, "Invalid payload")
+		return
+	}
+
+	var dbOTP string
+	var expiry time.Time
+
+	err := config.DB.QueryRow(
+		`SELECT otp, expire_at FROM employee WHERE email = ?`,
+		input.Email,
+	).Scan(&dbOTP, &expiry)
+
+	if err != nil {
+		utils.Failed(c, http.StatusNotFound, "Email not registered")
+		return
+	}
+
+	if dbOTP != input.OTP {
+		utils.Failed(c, http.StatusUnauthorized, "Invalid OTP")
+		return
+	}
+
+	if time.Now().After(expiry) {
+		utils.Failed(c, http.StatusUnauthorized, "OTP expired")
+		return
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword(
+		[]byte(input.NewPassword),
+		bcrypt.DefaultCost,
+	)
+	if err != nil {
+		utils.Failed(c, http.StatusInternalServerError, "Failed to hash password")
+		return
+	}
+
+	_, err = config.DB.Exec(
+		`UPDATE employee 
+		 SET emp_password = ?, otp = NULL, expire_at = NULL 
+		 WHERE email = ?`,
+		string(hashedPassword),
+		input.Email,
+	)
+
+	if err != nil {
+		utils.Failed(c, http.StatusInternalServerError, "Failed to update password")
+		return
+	}
+
+	utils.Success(c, gin.H{
+		"message": "Password updated successfully",
+	})
+}
