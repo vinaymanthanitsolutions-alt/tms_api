@@ -7,6 +7,8 @@ import (
 )
 
 func Router(server *gin.Engine) {
-	server.GET("/emp/:emp_id", controllers.ShowEmployees)
+	server.GET("/emp", controllers.ShowEmployees)
 	server.DELETE("/emp/:emp_id",controllers.DeleteUser)
+	server.PUT("/emp/:emp_id",controllers.UpdateProfile)
+	server.PATCH("/empRestore/:emp_id",controllers.RestoreUser)
 }

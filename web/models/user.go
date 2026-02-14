@@ -30,6 +30,7 @@ type UserUpdate struct {
 	Department string `json:"department"`
 	Role       string `json:"role"`
 	ManagerID  string `json:"manager_id"`
+	Status  string `json:"status"`
 }
 
 

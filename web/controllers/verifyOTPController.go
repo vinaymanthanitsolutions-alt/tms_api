@@ -11,9 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// this function verifies OTP
 func VerifyOtp(c *gin.Context) {
-	// taking payload from frontend
 	var req struct {
 		EmpID string `json:"empID"`
 		OTP   string `json:"otp"`
@@ -25,13 +23,11 @@ func VerifyOtp(c *gin.Context) {
 		return
 	}
 
-	// variables used to store data temporarily
 	var dbOTP string
 	var expiry time.Time
 	var role string
 	var email string
 
-	// sql query to obtain data from table 
 	err := config.DB.QueryRow(`
 		SELECT otp, expire_at, role, email
 		FROM employee
@@ -44,26 +40,22 @@ func VerifyOtp(c *gin.Context) {
 		return
 	}
 
-	// check whether the time expires or not
 	if time.Now().After(expiry) {
 		utils.Failed(c, http.StatusUnauthorized, "OTP expired")
 		return
 	}
 
-	// compare OTP
 	if strings.TrimSpace(dbOTP) != strings.TrimSpace(req.OTP) {
 		utils.Failed(c, http.StatusUnauthorized, "Invalid otp")
 		return
 	}
 
-	// token generation
 	token, err := utils.GenerateToken(req.EmpID, email)
 	if err != nil {
 		utils.Failed(c, http.StatusInternalServerError, "Failed to generate token")
 		return
 	}
 
-	// clear OTP after successful verification
 	_, err = config.DB.Exec(`
 		UPDATE employee
 		SET otp = NULL, expire_at = NULL

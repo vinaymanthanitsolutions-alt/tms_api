@@ -43,7 +43,6 @@ func LoginUser(c *gin.Context) {
 		return
 	}
 
-	//  Generate OTP
 	otp, err := utils.GenerateOTP()
 	if err != nil {
 		utils.Failed(c, http.StatusInternalServerError, "Failed to generate OTP")
@@ -52,7 +51,6 @@ func LoginUser(c *gin.Context) {
 
 	otpExpiry := time.Now().Add(5 * time.Minute)
 
-	//  Store OTP
 	_, err = config.DB.Exec(
 		`UPDATE employee SET otp = ?, expire_at = ? WHERE emp_id = ?`,
 		otp,
@@ -66,6 +64,7 @@ func LoginUser(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"empID":   empId,
+		"message": "OTP send to your registered email",
 		"success": true,
 	})
 }
@@ -118,3 +117,4 @@ func ForgetPassword(c *gin.Context) {
 		"message": "OTP generated successfully and sent to email",
 	})
 }
+
