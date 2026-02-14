@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"database/sql"
 	"math"
 	"net/http"
 	"strconv"
@@ -70,8 +69,6 @@ func Add(c *gin.Context) {
 
 func ShowEmployees(c *gin.Context) {
 
-	// GET /emp?emp_id=SA001&status=ACTIVE&page=2&limit=5    example api call
-
 	managerID := c.Query("emp_id")
 	if managerID == "" {
 		utils.Failed(c, http.StatusBadRequest, "emp_id is required")
@@ -84,50 +81,54 @@ func ShowEmployees(c *gin.Context) {
 		return
 	}
 
+	search := c.Query("search")
+
 	pageStr := c.DefaultQuery("page", "1")
 	limitStr := c.DefaultQuery("limit", "10")
 
-	page, err := strconv.Atoi(pageStr)
-	if err != nil || page < 1 {
+	page, _ := strconv.Atoi(pageStr)
+	if page < 1 {
 		page = 1
 	}
 
-	limit, err := strconv.Atoi(limitStr)
-	if err != nil || limit < 1 {
+	limit, _ := strconv.Atoi(limitStr)
+	if limit < 1 {
 		limit = 10
 	}
 
 	offset := (page - 1) * limit
 
-	var (
-		query      string
-		countQuery string
-		rows       *sql.Rows
-		total      int
-	)
+	where := "WHERE manager_id = ?"
+	args := []interface{}{managerID}
 
-	if status == "ALL" {
-		countQuery = `SELECT COUNT(*) FROM employee WHERE manager_id = ?`
-		err = config.DB.QueryRow(countQuery, managerID).Scan(&total)
-
-		query = `SELECT emp_id,emp_name,email,phone,department,role,status
-		         FROM employee
-		         WHERE manager_id = ?
-		         LIMIT ? OFFSET ?`
-
-		rows, err = config.DB.Query(query, managerID, limit, offset)
-	} else {
-		countQuery = `SELECT COUNT(*) FROM employee WHERE manager_id = ? AND status = ?`
-		err = config.DB.QueryRow(countQuery, managerID, status).Scan(&total)
-
-		query = `SELECT emp_id,emp_name,email,phone,department,role,status
-		         FROM employee
-		         WHERE manager_id = ? AND status = ?
-		         LIMIT ? OFFSET ?`
-
-		rows, err = config.DB.Query(query, managerID, status, limit, offset)
+	if status != "ALL" {
+		where += " AND status = ?"
+		args = append(args, status)
 	}
 
+	if search != "" {
+		where += " AND (emp_id LIKE ? OR emp_name LIKE ?)"
+		searchTerm := "%" + search + "%"
+		args = append(args, searchTerm, searchTerm)
+	}
+
+	countQuery := "SELECT COUNT(*) FROM employee " + where
+	var total int
+	err := config.DB.QueryRow(countQuery, args...).Scan(&total)
+	if err != nil {
+		utils.Failed(c, http.StatusInternalServerError, "Failed to count employees")
+		return
+	}
+
+	query := `
+		SELECT emp_id,emp_name,email,phone,department,role,status
+		FROM employee
+		` + where + `
+		LIMIT ? OFFSET ?`
+
+	args = append(args, limit, offset)
+
+	rows, err := config.DB.Query(query, args...)
 	if err != nil {
 		utils.Failed(c, http.StatusInternalServerError, "Failed to fetch employees")
 		return
@@ -138,7 +139,6 @@ func ShowEmployees(c *gin.Context) {
 
 	for rows.Next() {
 		var emp models.UserShow
-
 		if err := rows.Scan(
 			&emp.EmpID,
 			&emp.EmpName,
@@ -151,7 +151,6 @@ func ShowEmployees(c *gin.Context) {
 			utils.Failed(c, http.StatusInternalServerError, "Error scanning employees")
 			return
 		}
-
 		employees = append(employees, emp)
 	}
 
