@@ -69,11 +69,9 @@ func Add(c *gin.Context) {
 }
 
 
-
-
-
-
 func ShowEmployees(c *gin.Context) {
+
+	// GET /emp?emp_id=SA001&status=ACTIVE&page=2&limit=5&search=ayu example api call
 
 	managerID := c.Query("emp_id")
 	if managerID == "" {

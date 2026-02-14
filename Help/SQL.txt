@@ -164,3 +164,54 @@ CREATE TABLE tasks (
 INSERT INTO `task_management`.`tasks` (`project_id`, `team_id`, `title`, `description`, `assigned_to`, `created_by`) VALUES ('PR001', 'TM001', 'Home page make', 'Add on home page ', 'DV001', 'PM001');
 
 
+// dummy data
+
+INSERT INTO employee (emp_id, emp_name, email, phone, emp_password, department, role, manager_id)
+VALUES 
+('PM010', 'Aditya Rao', 'aditya.rao@example.com', '9000000010', 'h', 'IT', 'PROJECT_MANAGER', 'A001'),
+
+('TL010', 'Meera Joshi', 'meera.joshi@example.com', '9000000011', 'h', 'IT', 'TEAM_LEADER', 'PM010'),
+
+('DV010', 'Ravi Patel', 'ravi.patel@example.com', '9000000012', 'h', 'IT', 'DEVELOPER', 'PM010'),
+
+('DV011', 'Simran Kaur', 'simran.kaur@example.com', '9000000013', 'h', 'IT', 'DEVELOPER', 'PM010'),
+
+('TS010', 'Arjun Mehta', 'arjun.mehta@example.com', '9000000014', 'h', 'IT', 'TESTER', 'PM010');  
+
+INSERT INTO project (project_id, name, description, created_by, pm_id, status)
+VALUES
+('PR010', 'Inventory System', 'Warehouse inventory management system', 'A001', 'PM010', 'ACTIVE');
+
+INSERT INTO team (team_id, project_id, team_leader_id)
+VALUES
+('TM010', 'PR010', 'TL010');
+
+INSERT INTO team_members (team_id, employee_id)
+VALUES
+('TM010', 'DV010'),
+('TM010', 'DV011'),
+('TM010', 'TS010');
+
+
+INSERT INTO tasks (project_id, team_id, title, description, assigned_to, created_by, status, deadline)
+VALUES
+('PR010', 'TM010', 'Database Design', 'Design inventory DB schema', 'DV010', 'PM010', 'IN_PROGRESS', '2026-03-01'),
+
+('PR010', 'TM010', 'API Development', 'Create CRUD APIs for inventory', 'DV011', 'PM010', 'TODO', '2026-03-05'),
+
+('PR010', 'TM010', 'System Testing', 'Perform integration testing', 'TS010', 'PM010', 'TODO', '2026-03-10');
+
+INSERT INTO employee 
+(emp_id, emp_name, email, phone, emp_password, department, role, manager_id)
+VALUES
+('PM003', 'Ankit Mehra', 'ankit.mehra@example.com', '9000000017', 'h', 'IT', 'PROJECT_MANAGER', 'A001'),
+
+('TL003', 'Pooja Malhotra', 'pooja.malhotra@example.com', '9000000018', 'h', 'IT', 'TEAM_LEADER', 'PM003'),
+
+('DV004', 'Ravi Kumar', 'ravi.kumar@example.com', '9000000019', 'h', 'IT', 'DEVELOPER', 'PM003'),
+
+('DV005', 'Simran Singh', 'simran.singh@example.com', '9000000020', 'h', 'IT', 'DEVELOPER', 'PM003'),
+
+('TS003', 'Arjun Patel', 'arjun.patel@example.com', '9000000021', 'h', 'IT', 'TESTER', 'PM003');
+
+
