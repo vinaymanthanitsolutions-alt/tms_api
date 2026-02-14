@@ -4,8 +4,11 @@ import (
 	"backend/internal/config"
 	"backend/internal/utils"
 	"backend/web/models"
+	"database/sql"
 	"log"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -128,15 +131,75 @@ func GetProjectsByPM(c *gin.Context) {
 }
 
 func GetAllProjects(c *gin.Context) {
+
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "5")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 {
+		limit = 5
+	}
+
+	offset := (page - 1) * limit
+
 	rows, err := config.DB.Query(
-		"SELECT * FROM project",
+		"SELECT project_id, name, description, created_by, pm_id, status, deadline FROM project LIMIT ? OFFSET ?",
+		limit, offset,
 	)
 	if err != nil {
 		utils.Failed(c, http.StatusInternalServerError, "Fetch failed")
 		return
 	}
+	defer rows.Close()
 
-	utils.Success(c, rows)
+	var projects []map[string]interface{}
+
+	for rows.Next() {
+		var projectID, name, description, createdBy, pmID, status string
+		var deadline sql.NullTime
+
+		if err := rows.Scan(&projectID, &name, &description, &createdBy, &pmID, &status, &deadline); err != nil {
+			utils.Failed(c, http.StatusInternalServerError, "Scan error")
+			return
+		}
+
+		project := map[string]interface{}{
+			"project_id":  projectID,
+			"name":        name,
+			"description": description,
+			"created_by":  createdBy,
+			"pm_id":       pmID,
+			"status":      status,
+			"deadline":    nil,
+		}
+
+		if deadline.Valid {
+			project["deadline"] = deadline.Time.Format("2006-01-02 15:04:05")
+		}
+
+		projects = append(projects, project)
+	}
+
+	var total int
+	err = config.DB.QueryRow("SELECT COUNT(*) FROM project").Scan(&total)
+	if err != nil {
+		utils.Failed(c, http.StatusInternalServerError, "Count failed")
+		return
+	}
+
+	response := map[string]interface{}{
+		"page":     page,
+		"limit":    limit,
+		"total":    total,
+		"projects": projects,
+	}
+
+	utils.Success(c, response)
 }
 
 func AssignProjectManager(c *gin.Context) {
@@ -166,17 +229,44 @@ func AssignProjectManager(c *gin.Context) {
 }
 
 func GetProjectsByAdmin(c *gin.Context) {
-	adminID := c.Param("admin_id")
+	adminID := strings.TrimSpace(c.Param("admin_id"))
 
 	rows, err := config.DB.Query(
-		"SELECT * FROM project WHERE created_by=?",
+		"SELECT project_id, name, description, pm_id, status, deadline FROM project WHERE created_by=?",
 		adminID,
 	)
-
 	if err != nil {
 		utils.Failed(c, http.StatusInternalServerError, "Fetch failed")
 		return
 	}
+	defer rows.Close()
 
-	utils.Success(c, rows)
+	var projects []map[string]interface{}
+
+	for rows.Next() {
+		var projectID, name, description, pmID, status string
+		var deadline sql.NullTime
+
+		if err := rows.Scan(&projectID, &name, &description, &pmID, &status, &deadline); err != nil {
+			utils.Failed(c, http.StatusInternalServerError, "Scan error")
+			return
+		}
+
+		project := map[string]interface{}{
+			"project_id":  projectID,
+			"name":        name,
+			"description": description,
+			"pm_id":       pmID,
+			"status":      status,
+			"deadline":    nil,
+		}
+
+		if deadline.Valid {
+			project["deadline"] = deadline.Time.Format("2006-01-02 15:04:05")
+		}
+
+		projects = append(projects, project)
+	}
+
+	utils.Success(c, projects)
 }
