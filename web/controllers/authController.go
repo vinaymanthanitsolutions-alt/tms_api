@@ -43,7 +43,7 @@ func LoginUser(c *gin.Context) {
 		return
 	}
 
-	// ✅ Generate OTP
+	//  Generate OTP
 	otp, err := utils.GenerateOTP()
 	if err != nil {
 		utils.Failed(c, http.StatusInternalServerError, "Failed to generate OTP")
@@ -52,7 +52,7 @@ func LoginUser(c *gin.Context) {
 
 	otpExpiry := time.Now().Add(5 * time.Minute)
 
-	// ✅ Store OTP
+	//  Store OTP
 	_, err = config.DB.Exec(
 		`UPDATE employee SET otp = ?, expire_at = ? WHERE emp_id = ?`,
 		otp,
