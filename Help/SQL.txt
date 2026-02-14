@@ -63,7 +63,7 @@ http://localhost:8080/signup
 
 
 INSERT INTO `task_management`.`employee` (`emp_id`, `emp_name`, `email`, `phone`, `emp_password`, `department`, `role`, `manager_id`) VALUES ('PM001', 'Sarthak', 'sarthak@example.com', '9876543213', 'h', 'IT', 'PROJECT_MANAGER', 'A001');
-INSERT INTO `task_management`.`employee` (`emp_id`, `emp_name`, `email`, `phone`, `emp_password`, `department`, `role`, `manager_id`) VALUES ('TM001', 'Divya', 'Divya@example.com', '9876543214', 'h', 'IT', 'TEAM_LEADER', 'A001');
+INSERT INTO `task_management`.`employee` (`emp_id`, `emp_name`, `email`, `phone`, `emp_password`, `department`, `role`, `manager_id`) VALUES ('TL001', 'Divya', 'Divya@example.com', '9876543214', 'h', 'IT', 'TEAM_LEADER', 'A001');
 INSERT INTO `task_management`.`employee` (`emp_id`, `emp_name`, `email`, `phone`, `emp_password`, `department`, `role`, `manager_id`) VALUES ('DV001', 'Prince', 'prince@example.com', '9876543215', 'h', 'IT', 'DEVELOPER', 'PM001');
 INSERT INTO `task_management`.`employee` (`emp_id`, `emp_name`, `email`, `phone`, `emp_password`, `department`, `role`, `manager_id`) VALUES ('TS001', 'Arush', 'Arush@example.com', '9876543216', 'h', 'IT', 'TESTER', 'PM001');
 
@@ -103,7 +103,7 @@ CREATE TABLE team (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );  
 
-INSERT INTO `task_management`.`team` (`team_id`, `project_id`, `team_leader_id`) VALUES ('TM001', 'PR001', 'TM001');
+INSERT INTO `task_management`.`team` (`team_id`, `project_id`, `team_leader_id`) VALUES ('TM001', 'PR001', 'TL001');
 
 
 
@@ -162,7 +162,7 @@ CREATE TABLE tasks (
     FOREIGN KEY (created_by) REFERENCES employee(emp_id)
 );
 INSERT INTO `task_management`.`tasks` (`project_id`, `team_id`, `title`, `description`, `assigned_to`, `created_by`) VALUES ('PR001', 'TM001', 'Home page make', 'Add on home page ', 'DV001', 'PM001');
-
+ALTER TABLE project modify pm_id varchar(20) null;
 
 // dummy data
 
