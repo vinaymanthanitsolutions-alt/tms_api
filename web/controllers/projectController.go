@@ -1,26 +1,16 @@
 package controllers
 
 import (
-	"net/http"
 	"backend/internal/config"
 	"backend/internal/utils"
+	"backend/web/models"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
-type Project struct {
-	ProjectID  string `json:"project_id"`
-	Name       string `json:"name"`
-	Description string `json:"description"`
-	CreatedBy  string `json:"created_by"`
-	PMID       string `json:"pm_id"`
-	Status     string `json:"status"`
-	Deadline   string `json:"deadline"`
-}
-
-
 func CreateProject(c *gin.Context) {
-	var p Project
+	var p models.Project
 
 	if err := c.ShouldBindJSON(&p); err != nil {
 		utils.Failed(c, http.StatusBadRequest, "Invalid request")
@@ -54,7 +44,7 @@ func CreateProject(c *gin.Context) {
 func UpdateProject(c *gin.Context) {
 	id := c.Param("project_id")
 
-	var p Project
+	var p models.Project
 	if err := c.ShouldBindJSON(&p); err != nil {
 		utils.Failed(c, http.StatusBadRequest, "Invalid data")
 		return
@@ -82,7 +72,6 @@ func UpdateProject(c *gin.Context) {
 
 	utils.Success(c, "Project updated")
 }
-
 
 func DeleteProject(c *gin.Context) {
 	id := c.Param("project_id")
