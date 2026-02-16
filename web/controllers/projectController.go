@@ -23,10 +23,10 @@ func CreateProject(c *gin.Context) {
 		return
 	}
 
-	// 1️⃣ Parse deadline string into MySQL datetime
+	
 	var deadline sql.NullString
 	if p.Deadline != "" {
-		// Convert ISO 8601 to "YYYY-MM-DD HH:MM:SS"
+		
 		t, err := time.Parse(time.RFC3339, p.Deadline)
 		if err != nil {
 			c.JSON(400, gin.H{"error": "Invalid deadline format. Use 2026-01-20T00:00:00Z"})
@@ -49,8 +49,8 @@ func CreateProject(c *gin.Context) {
 		p.Name,
 		p.Description,
 		p.CreatedBy,
-		p.PMID,   // will be NULL if p.PMID is nil
-		deadline, // sql.NullString handles NULL
+		p.PMID,   
+		deadline, 
 	)
 
 	if err != nil {
