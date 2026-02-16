@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -21,6 +22,21 @@ func CreateProject(c *gin.Context) {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
+
+	// 1️⃣ Parse deadline string into MySQL datetime
+	var deadline sql.NullString
+	if p.Deadline != "" {
+		// Convert ISO 8601 to "YYYY-MM-DD HH:MM:SS"
+		t, err := time.Parse(time.RFC3339, p.Deadline)
+		if err != nil {
+			c.JSON(400, gin.H{"error": "Invalid deadline format. Use 2026-01-20T00:00:00Z"})
+			return
+		}
+		deadline = sql.NullString{String: t.Format("2006-01-02 15:04:05"), Valid: true}
+	} else {
+		deadline = sql.NullString{Valid: false}
+	}
+
 	query := `
 	INSERT INTO project
 	(project_id, name, description, created_by, pm_id, deadline)
@@ -33,8 +49,8 @@ func CreateProject(c *gin.Context) {
 		p.Name,
 		p.Description,
 		p.CreatedBy,
-		p.PMID,
-		p.Deadline,
+		p.PMID,   // will be NULL if p.PMID is nil
+		deadline, // sql.NullString handles NULL
 	)
 
 	if err != nil {
@@ -100,7 +116,7 @@ func GetProjectsByPM(c *gin.Context) {
 	log.Printf("PM ID = [%s]\n", pmID)
 
 	rows, err := config.DB.Query(`
-		SELECT project_id, name, status
+		SELECT project_id, name, status, deadline
 		FROM project
 		WHERE pm_id = ?
 	`, pmID)
@@ -115,17 +131,18 @@ func GetProjectsByPM(c *gin.Context) {
 
 	for rows.Next() {
 		var id, name, status string
+		var deadline sql.NullTime
 
-		if err := rows.Scan(&id, &name, &status); err != nil {
+		if err := rows.Scan(&id, &name, &status, &deadline); err != nil {
 			utils.Failed(c, 500, "Scan error")
 			return
 		}
 
 		project := map[string]interface{}{
-			"project_id":  id,
-			"name":        name,
-			"status": 	   status,
-			"deadline":    nil,
+			"project_id": id,
+			"name":       name,
+			"status":     status,
+			"deadline":   nil,
 		}
 
 		if deadline.Valid {
@@ -292,6 +309,29 @@ func GetProjectTeamDetails(c *gin.Context) {
 	}
 	offset := (page - 1) * limit
 
+	searchLike := "%" + search + "%"
+
+	countQuery := `
+		SELECT COUNT(*)
+		FROM project p
+		LEFT JOIN team t ON t.project_id = p.project_id
+		LEFT JOIN employee e_tl ON e_tl.emp_id = t.team_leader_id
+		LEFT JOIN team_members tm ON tm.team_id = t.team_id
+		LEFT JOIN employee e ON e.emp_id = tm.employee_id
+		WHERE
+			(? = '' OR 
+			 p.project_id LIKE ? OR
+			 p.name LIKE ? OR
+			 e.emp_name LIKE ? OR
+			 e_tl.emp_name LIKE ?
+			)
+	`
+	var total int
+	if err := config.DB.QueryRow(countQuery, search, searchLike, searchLike, searchLike, searchLike).Scan(&total); err != nil {
+		utils.Failed(c, 500, "Failed to count project details")
+		return
+	}
+
 	query := `
 		SELECT 
 			p.project_id,
@@ -318,8 +358,6 @@ func GetProjectTeamDetails(c *gin.Context) {
 		ORDER BY p.project_id, t.team_id, e.role
 		LIMIT ? OFFSET ?
 	`
-
-	searchLike := "%" + search + "%"
 
 	rows, err := config.DB.Query(
 		query,
@@ -368,9 +406,93 @@ func GetProjectTeamDetails(c *gin.Context) {
 	}
 
 	utils.Success(c, gin.H{
-		"page":    page,
-		"limit":   limit,
-		"count":   len(results),
-		"results": results,
+		"page":        page,
+		"limit":       limit,
+		"total":       total,
+		"total_pages": int(math.Ceil(float64(total) / float64(limit))),
+		"results":     results,
 	})
+}
+
+func GetProjectsGroupedByManager(c *gin.Context) {
+
+	managerID := c.Query("emp_id")
+	if managerID == "" {
+		utils.Failed(c, http.StatusBadRequest, "manager_id is required")
+		return
+	}
+	log.Println(managerID)
+	query := `
+		SELECT
+			p.project_id,
+			p.name,
+			p.status,
+			p.deadline,
+			e.emp_id,
+			e.emp_name
+		FROM project p
+		JOIN team t ON p.project_id = t.project_id
+		JOIN employee e ON t.team_leader_id = e.emp_id
+		WHERE p.pm_id = ?
+	`
+
+	rows, err := config.DB.Query(query, managerID)
+	if err != nil {
+		utils.Failed(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	projectMap := make(map[string]*models.ProjectWithTL)
+
+	for rows.Next() {
+		var (
+			projectID   string
+			projectName string
+			status      string
+			deadline    *string
+			tlID        string
+			tlName      string
+		)
+
+		if err := rows.Scan(
+			&projectID,
+			&projectName,
+			&status,
+			&deadline,
+			&tlID,
+			&tlName,
+		); err != nil {
+			utils.Failed(c, http.StatusInternalServerError, err.Error())
+			return
+		}
+		log.Println("project id", projectID)
+		// IF PROJECT NOT EXISTS , CREATE IT
+		if _, exists := projectMap[projectID]; !exists {
+			projectMap[projectID] = &models.ProjectWithTL{
+				ProjectID:   projectID,
+				ProjectName: projectName,
+				Status:      status,
+				Deadline:    deadline,
+				TeamLeaders: []models.TeamLeader{},
+			}
+		}
+
+		//APPEND TEAM LEADER
+		projectMap[projectID].TeamLeaders = append(
+			projectMap[projectID].TeamLeaders,
+			models.TeamLeader{
+				TeamLeaderID:   tlID,
+				TeamLeaderName: tlName,
+			},
+		)
+	}
+
+	// CONVERT MAP INTO SLICE
+	var result []models.ProjectWithTL
+	for _, project := range projectMap {
+		result = append(result, *project)
+	}
+
+	utils.Success(c, result)
 }
