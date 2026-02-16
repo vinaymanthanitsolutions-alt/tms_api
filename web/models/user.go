@@ -34,3 +34,15 @@ type UserUpdate struct {
 }
 
 
+type TeamLeader struct {
+	TeamLeaderID   string `json:"team_leader_id"`
+	TeamLeaderName string `json:"team_leader_name"`
+}
+
+type ProjectWithTL struct {
+	ProjectID    string       `json:"project_id"`
+	ProjectName  string       `json:"project_name"`
+	Status       string       `json:"status"`
+	Deadline     *string       `json:"deadline"`
+	TeamLeaders  []TeamLeader `json:"team_leaders"`
+}

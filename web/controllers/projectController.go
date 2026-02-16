@@ -94,7 +94,7 @@ func DeleteProject(c *gin.Context) {
 }
 
 func GetProjectsByPM(c *gin.Context) {
-	pmID := c.Param("pm_id")
+	pmID := c.Query("pm_id")
 
 	log.Printf("PM ID = [%s]\n", pmID)
 
@@ -299,36 +299,119 @@ func GetProjectTeamDetails(c *gin.Context) {
 	var results []gin.H
 
 	for rows.Next() {
-    var projectID, projectName string
-    var teamID, leader, empName, role, dept sql.NullString
+		var projectID, projectName string
+		var teamID, leader, empName, role, dept sql.NullString
 
-    err := rows.Scan(
-        &projectID,
-        &projectName,
-        &teamID,
-        &leader,
-        &empName,
-        &role,
-        &dept,
-    )
+		err := rows.Scan(
+			&projectID,
+			&projectName,
+			&teamID,
+			&leader,
+			&empName,
+			&role,
+			&dept,
+		)
 
-    if err != nil {
-        utils.Failed(c, 500, "Error reading data")
-        return
-    }
+		if err != nil {
+			utils.Failed(c, 500, "Error reading data")
+			return
+		}
 
-    project := gin.H{
-        "project_id": projectID,
-        "project_name": projectName,
-        "team_id": teamID.String,
-        "team_leader": leader.String,
-        "employee_name": empName.String,
-        "role": role.String,
-        "department": dept.String,
-    }
+		project := gin.H{
+			"project_id":    projectID,
+			"project_name":  projectName,
+			"team_id":       teamID.String,
+			"team_leader":   leader.String,
+			"employee_name": empName.String,
+			"role":          role.String,
+			"department":    dept.String,
+		}
 
-    results = append(results, project)
-}
+		results = append(results, project)
+	}
 
 	utils.Success(c, results)
+}
+
+func GetProjectsGroupedByManager(c *gin.Context) {
+
+	managerID := c.Query("emp_id")
+	if managerID == "" {
+		utils.Failed(c, http.StatusBadRequest, "manager_id is required")
+		return
+	}
+	log.Println(managerID)
+	query := `
+		SELECT
+			p.project_id,
+			p.name,
+			p.status,
+			p.deadline,
+			e.emp_id,
+			e.emp_name
+		FROM project p
+		JOIN team t ON p.project_id = t.project_id
+		JOIN employee e ON t.team_leader_id = e.emp_id
+		WHERE p.pm_id = ?
+	`
+
+	rows, err := config.DB.Query(query, managerID)
+	if err != nil {
+		utils.Failed(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	projectMap := make(map[string]*models.ProjectWithTL)
+
+	for rows.Next() {
+		var (
+			projectID   string
+			projectName string
+			status      string
+			deadline    *string
+			tlID        string
+			tlName      string
+		)
+
+		if err := rows.Scan(
+			&projectID,
+			&projectName,
+			&status,
+			&deadline,
+			&tlID,
+			&tlName,
+		); err != nil {
+			utils.Failed(c, http.StatusInternalServerError, err.Error())
+			return
+		}
+		log.Println("project id",projectID)
+		// IF PROJECT NOT EXISTS , CREATE IT 
+		if _, exists := projectMap[projectID]; !exists {
+			projectMap[projectID] = &models.ProjectWithTL{
+				ProjectID:   projectID,
+				ProjectName: projectName,
+				Status:      status,
+				Deadline:    deadline,
+				TeamLeaders: []models.TeamLeader{},
+			}
+		}
+
+		//APPEND TEAM LEADER  
+		projectMap[projectID].TeamLeaders = append(
+			projectMap[projectID].TeamLeaders,
+			models.TeamLeader{
+				TeamLeaderID:   tlID,
+				TeamLeaderName: tlName,
+			},
+		)
+	}
+
+	// CONVERT MAP INTO SLICE
+	var result []models.ProjectWithTL
+	for _, project := range projectMap {
+		result = append(result, *project)
+	}
+
+	utils.Success(c, result)
 }
