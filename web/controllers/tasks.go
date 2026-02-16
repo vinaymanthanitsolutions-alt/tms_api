@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"backend/internal/config"
+	"database/sql"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -23,6 +25,19 @@ func CreateTask(c *gin.Context) {
 		return
 	}
 
+	var deadline sql.NullString
+	if input.Deadline != "" {
+
+		t, err := time.Parse(time.RFC3339, input.Deadline)
+		if err != nil {
+			c.JSON(400, gin.H{"error": "Invalid deadline format. Use 2026-01-20T00:00:00Z"})
+			return
+		}
+		deadline = sql.NullString{String: t.Format("2006-01-02 15:04:05"), Valid: true}
+	} else {
+		deadline = sql.NullString{Valid: false}
+	}
+
 	query := `
 		INSERT INTO tasks 
 		(project_id, team_id, title, description, assigned_to, created_by, deadline)
@@ -37,7 +52,7 @@ func CreateTask(c *gin.Context) {
 		input.Description,
 		input.AssignedTo,
 		input.CreatedBy,
-		input.Deadline,
+		deadline,
 	)
 
 	if err != nil {
@@ -74,11 +89,11 @@ func GetTasksByProject(c *gin.Context) {
 		rows.Scan(&id, &title, &status, &assignedTo, &deadline)
 
 		tasks = append(tasks, gin.H{
-			"id": id,
-			"title": title,
-			"status": status,
+			"id":          id,
+			"title":       title,
+			"status":      status,
 			"assigned_to": assignedTo,
-			"deadline": deadline,
+			"deadline":    deadline,
 		})
 	}
 
@@ -110,9 +125,9 @@ func GetTasksByUser(c *gin.Context) {
 		rows.Scan(&id, &title, &status, &projectID)
 
 		tasks = append(tasks, gin.H{
-			"id": id,
-			"title": title,
-			"status": status,
+			"id":         id,
+			"title":      title,
+			"status":     status,
 			"project_id": projectID,
 		})
 	}
