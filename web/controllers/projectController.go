@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -98,7 +99,7 @@ func GetProjectsByPM(c *gin.Context) {
 	log.Printf("PM ID = [%s]\n", pmID)
 
 	rows, err := config.DB.Query(`
-		SELECT project_id, name, status
+		SELECT project_id, name, status, deadline
 		FROM project
 		WHERE pm_id = ?
 	`, pmID)
@@ -113,18 +114,27 @@ func GetProjectsByPM(c *gin.Context) {
 
 	for rows.Next() {
 		var id, name, status string
+		var deadline sql.NullTime
 
-		if err := rows.Scan(&id, &name, &status); err != nil {
+		if err := rows.Scan(&id, &name, &status, &deadline); err != nil {
 			utils.Failed(c, 500, "Scan error")
 			return
 		}
 
-		projects = append(projects, gin.H{
-			"project_id": id,
-			"name":       name,
-			"status":     status,
-		})
+		project := map[string]interface{}{
+			"project_id":  id,
+			"name":        name,
+			"status": 	   status,
+			"deadline":    nil,
+		}
+
+		if deadline.Valid {
+			project["deadline"] = deadline.Time.Format("2006-01-02 15:04:05")
+		}
+
+		projects = append(projects, project)
 	}
+
 
 	utils.Success(c, projects)
 }
@@ -239,15 +249,31 @@ func GetProjectsByAdmin(c *gin.Context) {
 	utils.Success(c, projects)
 }
 
-
 func GetProjectTeamDetails(c *gin.Context) {
-	rows, err := config.DB.Query(`
+
+	search := c.Query("search")
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 10
+	}
+
+	offset := (page - 1) * limit
+
+	query := `
 		SELECT 
 			p.project_id,
-			p.name,
+			p.name AS project_name,
 			t.team_id,
 			e_tl.emp_name AS team_leader,
-			e.emp_name ,
+			e_tl.email AS team_leader_email,
+			e.emp_name AS employee_name,
+			e.email AS employee_email,
 			e.role,
 			e.department
 		FROM project p
@@ -255,8 +281,29 @@ func GetProjectTeamDetails(c *gin.Context) {
 		LEFT JOIN employee e_tl ON e_tl.emp_id = t.team_leader_id
 		LEFT JOIN team_members tm ON tm.team_id = t.team_id
 		LEFT JOIN employee e ON e.emp_id = tm.employee_id
+		WHERE
+			(? = '' OR 
+			 p.project_id LIKE ? OR
+			 p.name LIKE ? OR
+			 e.emp_name LIKE ? OR
+			 e_tl.emp_name LIKE ?
+			)
 		ORDER BY p.project_id, t.team_id, e.role
-	`)
+		LIMIT ? OFFSET ?
+	`
+
+	searchLike := "%" + search + "%"
+
+	rows, err := config.DB.Query(
+		query,
+		search,
+		searchLike,
+		searchLike,
+		searchLike,
+		searchLike,
+		limit,
+		offset,
+	)
 
 	if err != nil {
 		utils.Failed(c, 500, "Failed to fetch project details")
@@ -267,36 +314,45 @@ func GetProjectTeamDetails(c *gin.Context) {
 	var results []gin.H
 
 	for rows.Next() {
-    var projectID, projectName string
-    var teamID, leader, empName, role, dept sql.NullString
 
-    err := rows.Scan(
-        &projectID,
-        &projectName,
-        &teamID,
-        &leader,
-        &empName,
-        &role,
-        &dept,
-    )
+		var projectID, projectName string
+		var teamID, teamLeader, tLEmail sql.NullString
+		var empName, empEmail, role, dept sql.NullString
 
-    if err != nil {
-        utils.Failed(c, 500, "Error reading data")
-        return
-    }
+		err := rows.Scan(
+			&projectID,
+			&projectName,
+			&teamID,
+			&teamLeader,
+			&tLEmail,
+			&empName,
+			&empEmail,
+			&role,
+			&dept,
+		)
 
-    project := gin.H{
-        "project_id": projectID,
-        "project_name": projectName,
-        "team_id": teamID.String,
-        "team_leader": leader.String,
-        "employee_name": empName.String,
-        "role": role.String,
-        "department": dept.String,
-    }
+		if err != nil {
+			utils.Failed(c, 500, "Error reading data")
+			return
+		}
 
-    results = append(results, project)
-}
+		results = append(results, gin.H{
+			"project_id":          projectID,
+			"project_name":        projectName,
+			"team_id":             teamID.String,
+			"team_leader":         teamLeader.String,
+			"team_leader_email":   tLEmail.String,
+			"employee_name":       empName.String,
+			"employee_email":      empEmail.String,
+			"role":                role.String,
+			"department":          dept.String,
+		})
+	}
 
-	utils.Success(c, results)
+	utils.Success(c, gin.H{
+		"page":    page,
+		"limit":   limit,
+		"count":   len(results),
+		"results": results,
+	})
 }
