@@ -95,12 +95,12 @@ func DeleteProject(c *gin.Context) {
 }
 
 func GetProjectsByPM(c *gin.Context) {
-	pmID := c.Param("pm_id")
+	pmID := c.Query("pm_id")
 
 	log.Printf("PM ID = [%s]\n", pmID)
 
 	rows, err := config.DB.Query(`
-		SELECT project_id, name, status, deadline
+		SELECT project_id, name, status
 		FROM project
 		WHERE pm_id = ?
 	`, pmID)
@@ -115,22 +115,21 @@ func GetProjectsByPM(c *gin.Context) {
 
 	for rows.Next() {
 		var id, name, status string
-		var deadline sql.NullTime
 
-		if err := rows.Scan(&id, &name, &status, &deadline); err != nil {
+		if err := rows.Scan(&id, &name, &status); err != nil {
 			utils.Failed(c, 500, "Scan error")
 			return
 		}
 
 		project := map[string]interface{}{
-			"project_id": id,
-			"name":       name,
-			"status":     status,
-			"deadline":   nil,
+			"project_id":  id,
+			"name":        name,
+			"status": 	   status,
+			"deadline":    nil,
 		}
 
 		if deadline.Valid {
-			project["deadline"] = deadline.Time.Format("02-01-2006")
+			project["deadline"] = deadline.Time.Format("2006-01-02 15:04:05")
 		}
 
 		projects = append(projects, project)
@@ -293,29 +292,6 @@ func GetProjectTeamDetails(c *gin.Context) {
 	}
 	offset := (page - 1) * limit
 
-	searchLike := "%" + search + "%"
-
-	countQuery := `
-		SELECT COUNT(*)
-		FROM project p
-		LEFT JOIN team t ON t.project_id = p.project_id
-		LEFT JOIN employee e_tl ON e_tl.emp_id = t.team_leader_id
-		LEFT JOIN team_members tm ON tm.team_id = t.team_id
-		LEFT JOIN employee e ON e.emp_id = tm.employee_id
-		WHERE
-			(? = '' OR 
-			 p.project_id LIKE ? OR
-			 p.name LIKE ? OR
-			 e.emp_name LIKE ? OR
-			 e_tl.emp_name LIKE ?
-			)
-	`
-	var total int
-	if err := config.DB.QueryRow(countQuery, search, searchLike, searchLike, searchLike, searchLike).Scan(&total); err != nil {
-		utils.Failed(c, 500, "Failed to count project details")
-		return
-	}
-
 	query := `
 		SELECT 
 			p.project_id,
@@ -342,6 +318,8 @@ func GetProjectTeamDetails(c *gin.Context) {
 		ORDER BY p.project_id, t.team_id, e.role
 		LIMIT ? OFFSET ?
 	`
+
+	searchLike := "%" + search + "%"
 
 	rows, err := config.DB.Query(
 		query,
@@ -390,10 +368,9 @@ func GetProjectTeamDetails(c *gin.Context) {
 	}
 
 	utils.Success(c, gin.H{
-		"page":        page,
-		"limit":       limit,
-		"total":       total,
-		"total_pages": int(math.Ceil(float64(total) / float64(limit))),
-		"results":     results,
+		"page":    page,
+		"limit":   limit,
+		"count":   len(results),
+		"results": results,
 	})
 }
