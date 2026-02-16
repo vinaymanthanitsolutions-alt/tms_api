@@ -6,6 +6,7 @@ import (
 	"backend/web/models"
 	"database/sql"
 	"log"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -17,10 +18,9 @@ func CreateProject(c *gin.Context) {
 	var p models.Project
 
 	if err := c.ShouldBindJSON(&p); err != nil {
-		utils.Failed(c, http.StatusBadRequest, "Invalid request")
+		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
-
 	query := `
 	INSERT INTO project
 	(project_id, name, description, created_by, pm_id, deadline)
@@ -38,6 +38,7 @@ func CreateProject(c *gin.Context) {
 	)
 
 	if err != nil {
+		log.Println("CreateProject error:", err)
 		utils.Failed(c, http.StatusConflict, "Project creation failed")
 		return
 	}
@@ -122,19 +123,18 @@ func GetProjectsByPM(c *gin.Context) {
 		}
 
 		project := map[string]interface{}{
-			"project_id":  id,
-			"name":        name,
-			"status": 	   status,
-			"deadline":    nil,
+			"project_id": id,
+			"name":       name,
+			"status":     status,
+			"deadline":   nil,
 		}
 
 		if deadline.Valid {
-			project["deadline"] = deadline.Time.Format("2006-01-02 15:04:05")
+			project["deadline"] = deadline.Time.Format("02-01-2006")
 		}
 
 		projects = append(projects, project)
 	}
-
 
 	utils.Success(c, projects)
 }
@@ -281,20 +281,40 @@ func GetProjectsByAdmin(c *gin.Context) {
 }
 
 func GetProjectTeamDetails(c *gin.Context) {
-
 	search := c.Query("search")
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
-
 	if page < 1 {
 		page = 1
 	}
 	if limit < 1 {
 		limit = 10
 	}
-
 	offset := (page - 1) * limit
+
+	searchLike := "%" + search + "%"
+
+	countQuery := `
+		SELECT COUNT(*)
+		FROM project p
+		LEFT JOIN team t ON t.project_id = p.project_id
+		LEFT JOIN employee e_tl ON e_tl.emp_id = t.team_leader_id
+		LEFT JOIN team_members tm ON tm.team_id = t.team_id
+		LEFT JOIN employee e ON e.emp_id = tm.employee_id
+		WHERE
+			(? = '' OR 
+			 p.project_id LIKE ? OR
+			 p.name LIKE ? OR
+			 e.emp_name LIKE ? OR
+			 e_tl.emp_name LIKE ?
+			)
+	`
+	var total int
+	if err := config.DB.QueryRow(countQuery, search, searchLike, searchLike, searchLike, searchLike).Scan(&total); err != nil {
+		utils.Failed(c, 500, "Failed to count project details")
+		return
+	}
 
 	query := `
 		SELECT 
@@ -323,19 +343,11 @@ func GetProjectTeamDetails(c *gin.Context) {
 		LIMIT ? OFFSET ?
 	`
 
-	searchLike := "%" + search + "%"
-
 	rows, err := config.DB.Query(
 		query,
-		search,
-		searchLike,
-		searchLike,
-		searchLike,
-		searchLike,
-		limit,
-		offset,
+		search, searchLike, searchLike, searchLike, searchLike,
+		limit, offset,
 	)
-
 	if err != nil {
 		utils.Failed(c, 500, "Failed to fetch project details")
 		return
@@ -345,12 +357,11 @@ func GetProjectTeamDetails(c *gin.Context) {
 	var results []gin.H
 
 	for rows.Next() {
-
 		var projectID, projectName string
 		var teamID, teamLeader, tLEmail sql.NullString
 		var empName, empEmail, role, dept sql.NullString
 
-		err := rows.Scan(
+		if err := rows.Scan(
 			&projectID,
 			&projectName,
 			&teamID,
@@ -360,30 +371,29 @@ func GetProjectTeamDetails(c *gin.Context) {
 			&empEmail,
 			&role,
 			&dept,
-		)
-
-		if err != nil {
+		); err != nil {
 			utils.Failed(c, 500, "Error reading data")
 			return
 		}
 
 		results = append(results, gin.H{
-			"project_id":          projectID,
-			"project_name":        projectName,
-			"team_id":             teamID.String,
-			"team_leader":         teamLeader.String,
-			"team_leader_email":   tLEmail.String,
-			"employee_name":       empName.String,
-			"employee_email":      empEmail.String,
-			"role":                role.String,
-			"department":          dept.String,
+			"project_id":        projectID,
+			"project_name":      projectName,
+			"team_id":           teamID.String,
+			"team_leader":       teamLeader.String,
+			"team_leader_email": tLEmail.String,
+			"employee_name":     empName.String,
+			"employee_email":    empEmail.String,
+			"role":              role.String,
+			"department":        dept.String,
 		})
 	}
 
 	utils.Success(c, gin.H{
-		"page":    page,
-		"limit":   limit,
-		"count":   len(results),
-		"results": results,
+		"page":        page,
+		"limit":       limit,
+		"total":       total,
+		"total_pages": int(math.Ceil(float64(total) / float64(limit))),
+		"results":     results,
 	})
 }
