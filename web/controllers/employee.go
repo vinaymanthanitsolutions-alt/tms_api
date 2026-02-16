@@ -326,3 +326,54 @@ func UpdateProfile(c *gin.Context) {
 		"message": "Profile updated successfully",
 	})
 }
+
+func GetEmployeesUnderSameManager(c *gin.Context) {
+
+	empID := c.Query("emp_id")
+	if empID == "" {
+		utils.Failed(c, http.StatusBadRequest, "emp_id is required")
+		return
+	}
+
+	query := `
+		SELECT 
+			e.emp_id,
+			e.emp_name,
+			e.role
+		FROM employee e
+		WHERE e.manager_id = (
+			SELECT manager_id 
+			FROM employee 
+			WHERE emp_id = ?
+		)
+	`
+
+	rows, err := config.DB.Query(query, empID)
+	if err != nil {
+		utils.Failed(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	var employees []models.EmployeeUnderManager
+
+	for rows.Next() {
+		var emp models.EmployeeUnderManager
+		if err := rows.Scan(
+			&emp.EmpID,
+			&emp.EmpName,
+			&emp.Role,
+		); err != nil {
+			utils.Failed(c, http.StatusInternalServerError, err.Error())
+			return
+		}
+		employees = append(employees, emp)
+	}
+
+	if len(employees) == 0 {
+		utils.Success(c,  []models.EmployeeUnderManager{})
+		return
+	}
+
+	utils.Success(c,  employees)
+}

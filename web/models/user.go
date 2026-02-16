@@ -46,3 +46,9 @@ type ProjectWithTL struct {
 	Deadline     *string       `json:"deadline"`
 	TeamLeaders  []TeamLeader `json:"team_leaders"`
 }
+
+type EmployeeUnderManager struct {
+	EmpID   string `json:"emp_id"`
+	EmpName string `json:"emp_name"`
+	Role    string `json:"role"`
+}
