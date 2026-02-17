@@ -215,3 +215,112 @@ VALUES
 ('TS003', 'Arjun Patel', 'arjun.patel@example.com', '9000000021', 'h', 'IT', 'TESTER', 'PM003');
 
 
+ALTER TABLE employee
+ADD COLUMN pm_id VARCHAR(20);
+ALTER TABLE employee
+ADD CONSTRAINT fk_employee_pm
+FOREIGN KEY (pm_id)
+REFERENCES employee(emp_id)
+ON UPDATE CASCADE
+ON DELETE SET NULL;
+ALTER TABLE project
+ADD COLUMN progress INT DEFAULT 0,
+ADD COLUMN updated_at TIMESTAMP 
+    DEFAULT CURRENT_TIMESTAMP 
+    ON UPDATE CURRENT_TIMESTAMP,
+ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL;
+ALTER TABLE team
+ADD COLUMN updated_at TIMESTAMP 
+    DEFAULT CURRENT_TIMESTAMP 
+    ON UPDATE CURRENT_TIMESTAMP,
+ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL;
+ALTER TABLE tasks
+ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL;
+ALTER TABLE team_members
+ADD COLUMN updated_at TIMESTAMP 
+    DEFAULT CURRENT_TIMESTAMP 
+    ON UPDATE CURRENT_TIMESTAMP;
+
+
+CREATE TABLE sub_tasks (
+    id INT AUTO_INCREMENT PRIMARY KEY,   
+
+    sub_task_code VARCHAR(25) UNIQUE,    
+
+    task_id INT NOT NULL,                
+
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+
+    status ENUM('PENDING', 'IN_PROGRESS', 'COMPLETED') 
+        DEFAULT 'PENDING',
+
+    assigned_to VARCHAR(20),
+    assigned_by VARCHAR(20),
+
+    priority ENUM('LOW', 'MEDIUM', 'HIGH') DEFAULT 'MEDIUM',
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+        ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+
+    FOREIGN KEY (task_id)
+        REFERENCES tasks(id)
+        ON DELETE CASCADE
+);
+
+CREATE TABLE queries (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    project_id VARCHAR(30) NULL,
+    task_id INT NULL,
+    sub_task_id INT NULL,
+
+    raised_by VARCHAR(30) NOT NULL,
+    assigned_to VARCHAR(30) NULL,
+
+    title VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+
+    priority ENUM('LOW','MEDIUM','HIGH') 
+        DEFAULT 'MEDIUM',
+
+    status ENUM(
+        'OPEN',
+        'IN_PROGRESS',
+        'RESOLVED',
+        'CLOSED'
+    ) DEFAULT 'OPEN',
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+
+    FOREIGN KEY (project_id)
+        REFERENCES project(project_id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE,
+
+    FOREIGN KEY (task_id)
+        REFERENCES tasks(id)           
+        ON DELETE SET NULL
+        ON UPDATE CASCADE,
+
+    FOREIGN KEY (sub_task_id)
+        REFERENCES sub_tasks(id)       
+        ON DELETE SET NULL
+        ON UPDATE CASCADE,
+
+    FOREIGN KEY (raised_by)
+        REFERENCES employee(emp_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+
+    FOREIGN KEY (assigned_to)
+        REFERENCES employee(emp_id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
+);
+

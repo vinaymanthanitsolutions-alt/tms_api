@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"backend/web/models"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -284,4 +285,67 @@ func DeleteTask(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{"message": "Task deleted successfully"})
+}
+
+func GetTasksWithDetails(c *gin.Context) {
+
+	rows, err := config.DB.Query(`
+		SELECT 
+			t.title,
+			t.project_id,
+			t.team_id,
+			t.status,
+			t.deadline,
+
+			tl.emp_id   AS team_leader_id,
+			tl.emp_name AS team_leader_name,
+
+			cr.emp_id   AS created_by_id,
+			cr.emp_name AS created_by_name
+
+		FROM tasks t
+		JOIN team tm ON t.team_id = tm.team_id
+		JOIN employee tl ON tm.team_leader_id = tl.emp_id
+		JOIN employee cr ON t.created_by = cr.emp_id
+	`)
+
+	if err != nil {
+		log.Println("Query error:", err)
+		utils.Failed(c, http.StatusInternalServerError, "Failed to fetch tasks")
+		return
+	}
+	defer rows.Close()
+
+	var tasks []models.TaskDetailResponse
+
+	for rows.Next() {
+
+		var task models.TaskDetailResponse
+		var deadline sql.NullTime
+
+		err := rows.Scan(
+			&task.Title,
+			&task.ProjectID,
+			&task.TeamID,
+			&task.Status,
+			&deadline,
+			&task.TeamLeaderID,
+			&task.TeamLeaderName,
+			&task.CreatedByID,
+			&task.CreatedByName,
+		)
+
+		if err != nil {
+			log.Println("Scan error:", err)
+			continue
+		}
+
+		if deadline.Valid {
+			task.Deadline = &deadline.Time
+		}
+
+		tasks = append(tasks, task)
+	}
+
+	utils.Success(c, tasks)
 }
