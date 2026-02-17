@@ -3,10 +3,11 @@ package controllers
 import (
 	"backend/internal/config"
 	"backend/internal/utils"
-	"backend/web/models"
 	"database/sql"
 	"log"
 	"net/http"
+	"strconv"
+	"backend/web/models"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -69,20 +70,59 @@ func CreateTask(c *gin.Context) {
 
 func GetTasksByProject(c *gin.Context) {
 
-	projectID := c.Param("project_id")
+	projectID := c.Query("project_id")
 
-	log.Println("project_id :", projectID)
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "10")
+	search := c.Query("search")
 
-	rows, err := config.DB.Query(`
-		 SELECT t.id, p.name, team_id, t.title, t.status, t.assigned_to, t.deadline
-		FROM tasks t
-		join project p
-		on t.project_id = p.project_id
-		WHERE t.project_id = ?
-	`, projectID)
+	page, _ := strconv.Atoi(pageStr)
+	limit, _ := strconv.Atoi(limitStr)
 
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 10
+	}
+
+	offset := (page - 1) * limit
+
+	query := `
+	SELECT 
+		t.id,
+		p.name AS project_name,
+		t.team_id,
+		t.title,
+		t.status,
+		t.assigned_to,
+		e.emp_name AS tl_name,
+		t.deadline
+	FROM tasks t
+	JOIN project p ON t.project_id = p.project_id
+	LEFT JOIN employee e ON t.assigned_to = e.emp_id
+	WHERE t.project_id = ?
+	`
+
+	args := []interface{}{projectID}
+
+	if search != "" {
+		query += `
+		AND (
+			t.title LIKE ?
+			OR t.status LIKE ?
+			OR e.emp_name LIKE ?
+		)`
+		searchPattern := "%" + search + "%"
+		args = append(args, searchPattern, searchPattern, searchPattern)
+	}
+
+	query += " LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
+
+	rows, err := config.DB.Query(query, args...)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		utils.Failed(c, http.StatusInternalServerError, "Fetch failed")
 		return
 	}
 	defer rows.Close()
@@ -92,22 +132,43 @@ func GetTasksByProject(c *gin.Context) {
 	for rows.Next() {
 		var id int
 		var projectName, teamID, title, status, assignedTo string
-		var deadline *string
+		var teamLeaderName sql.NullString
+		var deadline sql.NullString
 
-		rows.Scan(&id, &projectName, &teamID, &title, &status, &assignedTo, &deadline)
+		err := rows.Scan(
+			&id,
+			&projectName,
+			&teamID,
+			&title,
+			&status,
+			&assignedTo,
+			&teamLeaderName,
+			&deadline,
+		)
+
+		if err != nil {
+			log.Println("GetTasksByProject Scan error:", err) 
+			utils.Failed(c, http.StatusInternalServerError, "Scan failed")
+			return
+		}
 
 		tasks = append(tasks, gin.H{
-			"id":          id,
-			"projectName": projectName,
-			"teamID":      teamID,
-			"title":       title,
-			"status":      status,
-			"assigned_to": assignedTo,
-			"deadline":    deadline,
+			"id":             id,
+			"projectName":    projectName,
+			"teamID":         teamID,
+			"title":          title,
+			"status":         status,
+			"assigned_to":    assignedTo,
+			"teamLeaderName": teamLeaderName.String,
+			"deadline":       deadline.String,
 		})
 	}
 
-	c.JSON(200, tasks)
+	utils.Success(c, gin.H{
+	"page":  page,
+	"limit": limit,
+	"data":  tasks,
+})
 }
 
 func GetTasksByUser(c *gin.Context) {
