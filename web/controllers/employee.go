@@ -72,6 +72,7 @@ func ShowEmployees(c *gin.Context) {
 	// GET /emp?emp_id=SA001&status=ACTIVE&page=2&limit=5&search=ayu example api call
 
 	managerID := c.Query("emp_id")
+	role:= c.Query("role")
 	if managerID == "" {
 
 		utils.Failed(c, http.StatusBadRequest, "emp_id is required")
@@ -85,10 +86,10 @@ func ShowEmployees(c *gin.Context) {
 	// }
 
 	status := c.Query("status")
-	if status == "" {
-		utils.Failed(c, http.StatusBadRequest, "status is required")
-		return
-	}
+	// if status == "" {
+	// 	utils.Failed(c, http.StatusBadRequest, "status is required")
+	// 	return
+	// }
 
 	search := c.Query("search")
 
@@ -110,9 +111,14 @@ func ShowEmployees(c *gin.Context) {
 	where := "WHERE manager_id = ?"
 	args := []interface{}{managerID}
 
-	if status != "ALL" {
+	if status != "ALL" && status!= "" {
 		where += " AND status = ?"
 		args = append(args, status)
+	}
+
+	if role != ""{
+		where+=" AND role = ? "
+		args=append(args,role)
 	}
 
 	if search != "" {

@@ -322,5 +322,5 @@ CREATE TABLE queries (
         REFERENCES employee(emp_id)
         ON DELETE SET NULL
         ON UPDATE CASCADE
-) ;
+);
 

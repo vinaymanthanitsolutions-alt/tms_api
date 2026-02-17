@@ -9,15 +9,15 @@ import (
 func ProjectRoutes(r *gin.Engine) {
 	project := r.Group("/project")
 
-	project.POST("/", controllers.CreateProject)
-	project.PUT("/:project_id", controllers.UpdateProject)
+	project.POST("/", controllers.CreateProject) //by sarthak
+	project.PUT("/:project_id", controllers.UpdateProject) //used by sarthak 
 	project.DELETE("/:project_id", controllers.DeleteProject)
 
-	project.GET("/byPM", controllers.GetProjectsByPM)
+	project.GET("/byPM", controllers.GetProjectsByPM) // used vansh
 	project.GET("/", controllers.GetAllProjects)
 
-	project.PUT("/assign/:project_id", controllers.AssignProjectManager)
-	project.GET("/admin/:admin_id", controllers.GetProjectsByAdmin)
-	project.GET("/details", controllers.GetProjectTeamDetails)
+	project.PUT("/assign/:project_id", controllers.AssignProjectManager) //used by sarthak
+	project.GET("/admin/:admin_id", controllers.GetProjectsByAdmin) //will used by sarthak we have to add progress section 
+	project.GET("/details", controllers.GetProjectTeamDetails) // used vansh
 	project.GET("/reportAsPM",controllers.GetProjectsGroupedByManager)
 }
