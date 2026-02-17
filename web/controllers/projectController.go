@@ -228,37 +228,89 @@ func GetAllProjects(c *gin.Context) {
 }
 
 func AssignProjectManager(c *gin.Context) {
-	id := c.Param("project_id")
+    projectID := c.Param("project_id")
+    var data struct {
+        PMID *string `json:"pm_id"`
+    }
+    if err := c.ShouldBindJSON(&data); err != nil {
+        utils.Failed(c, http.StatusBadRequest, "Invalid data")
+        return
+    }
 
-	var data struct {
-	PMID *string `json:"pm_id"`
-}
-	if err := c.ShouldBindJSON(&data); err != nil {
-		utils.Failed(c, http.StatusBadRequest, "Invalid data")
-		return
-	}
+    var currentPM sql.NullString
+    err := config.DB.QueryRow(
+        "SELECT pm_id FROM project WHERE project_id = ?",
+        projectID,
+    ).Scan(&currentPM)
+    if err != nil {
+        if err == sql.ErrNoRows {
+            utils.Failed(c, http.StatusNotFound, "Project not found")
+        } else {
+            utils.Failed(c, http.StatusInternalServerError, "DB error")
+        }
+        return
+    }
 
-	_, err := config.DB.Exec(
-		"UPDATE project SET pm_id=? WHERE project_id=?",
-		data.PMID,
-		id,
-	)
+    if currentPM.Valid && data.PMID != nil && currentPM.String == *data.PMID {
+        utils.Failed(c, http.StatusBadRequest, " This PM already choosen")
+        return
+    }
 
-	if err != nil {
-		utils.Failed(c, http.StatusInternalServerError, "Assignment failed")
-		return
-	}
+    _, err = config.DB.Exec(
+        "UPDATE project SET pm_id=? WHERE project_id=?",
+        data.PMID,
+        projectID,
+    )
+    if err != nil {
+		log.Println("Assigning Problem : ",err)
+        utils.Failed(c, http.StatusInternalServerError, "Assignment failed")
+        return
+    }
 
-	utils.Success(c, "PM assigned")
+    utils.Success(c, "PM assigned successfully")
 }
 
 func GetProjectsByAdmin(c *gin.Context) {
-	adminID := strings.TrimSpace(c.Param("admin_id"))
+	adminID := strings.TrimSpace(c.Query("admin_id"))
 
-	rows, err := config.DB.Query(
-		"SELECT project_id, name, description, pm_id, status, deadline FROM project WHERE created_by=?",
-		adminID,
-	)
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "5")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 {
+		limit = 5
+	}
+	offset := (page - 1) * limit
+
+	search := strings.TrimSpace(c.DefaultQuery("search", ""))
+
+	query := `
+		SELECT project_id, name, description, pm_id, status, deadline 
+		FROM project 
+		WHERE created_by = ?
+	`
+	args := []interface{}{adminID}
+
+	if search != "" {
+	query += `
+	 AND (
+		name LIKE ? 
+		OR description LIKE ? 
+		OR pm_id = ?
+	 )`
+
+	searchPattern := "%" + search + "%"
+	args = append(args, searchPattern, searchPattern, search)
+}
+
+	query += " LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
+
+	rows, err := config.DB.Query(query, args...)
 	if err != nil {
 		utils.Failed(c, http.StatusInternalServerError, "Fetch failed")
 		return
@@ -266,7 +318,6 @@ func GetProjectsByAdmin(c *gin.Context) {
 	defer rows.Close()
 
 	var projects []map[string]interface{}
-
 	for rows.Next() {
 		var projectID, name, description, status string
 		var pmID sql.NullString
@@ -289,7 +340,6 @@ func GetProjectsByAdmin(c *gin.Context) {
 		if pmID.Valid {
 			project["pm_id"] = pmID.String
 		}
-
 		if deadline.Valid {
 			project["deadline"] = deadline.Time.Format("2006-01-02 15:04:05")
 		}
