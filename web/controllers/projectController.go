@@ -231,9 +231,8 @@ func AssignProjectManager(c *gin.Context) {
 	id := c.Param("project_id")
 
 	var data struct {
-		PMID string `json:"pm_id"`
-	}
-
+	PMID *string `json:"pm_id"`
+}
 	if err := c.ShouldBindJSON(&data); err != nil {
 		utils.Failed(c, http.StatusBadRequest, "Invalid data")
 		return
@@ -269,7 +268,8 @@ func GetProjectsByAdmin(c *gin.Context) {
 	var projects []map[string]interface{}
 
 	for rows.Next() {
-		var projectID, name, description, pmID, status string
+		var projectID, name, description, status string
+		var pmID sql.NullString
 		var deadline sql.NullTime
 
 		if err := rows.Scan(&projectID, &name, &description, &pmID, &status, &deadline); err != nil {
@@ -281,9 +281,13 @@ func GetProjectsByAdmin(c *gin.Context) {
 			"project_id":  projectID,
 			"name":        name,
 			"description": description,
-			"pm_id":       pmID,
+			"pm_id":       nil,
 			"status":      status,
 			"deadline":    nil,
+		}
+
+		if pmID.Valid {
+			project["pm_id"] = pmID.String
 		}
 
 		if deadline.Valid {
