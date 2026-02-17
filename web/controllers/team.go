@@ -3,27 +3,39 @@ package controllers
 import (
 	"backend/internal/config"
 	"backend/internal/utils"
+	"backend/web/models"
+	"database/sql"
+	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
 
 func CreateTeam(c *gin.Context) {
-	var input struct {
-		TeamID       string `json:"team_id"`
-		ProjectID    string `json:"project_id"`
-		TeamLeaderID string `json:"team_leader_id"`
-	}
+
+	var input models.CreateTeamRequest
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		utils.Failed(c, http.StatusBadRequest, "Invalid payload")
+		log.Println("CreateTeam: invalid payload:", err)
+		utils.Failed(c, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
 
 	var exists string
-	err := config.DB.QueryRow("SELECT project_id FROM project WHERE project_id = ?", input.ProjectID).Scan(&exists)
+	err := config.DB.QueryRow(
+		`SELECT project_id FROM project WHERE project_id = ?`,
+		input.ProjectID,
+	).Scan(&exists)
+
 	if err != nil {
-		utils.Failed(c, http.StatusBadRequest, "Project not found")
+		if err == sql.ErrNoRows {
+			log.Println("CreateTeam: project not found:", input.ProjectID)
+			utils.Failed(c, http.StatusNotFound, "Project does not exist")
+			return
+		}
+		log.Println("CreateTeam: project verification failed:", err)
+		utils.Failed(c, http.StatusInternalServerError, "Failed to verify project")
 		return
 	}
 
@@ -33,22 +45,29 @@ func CreateTeam(c *gin.Context) {
 		input.TeamID, input.ProjectID, input.TeamLeaderID)
 
 	if err != nil {
-		utils.Failed(c, http.StatusInternalServerError, err.Error())
+		if strings.Contains(err.Error(), "Duplicate") {
+			log.Println("CreateTeam: duplicate team id:", input.TeamID)
+			utils.Failed(c, http.StatusConflict, "Team ID already exists")
+			return
+		}
+		log.Println("CreateTeam: insert failed:", err)
+		utils.Failed(c, http.StatusInternalServerError, "Failed to create team")
 		return
 	}
 
-	utils.Success(c, "Team created successfully")
+	utils.Success(c, gin.H{"message": "Team created successfully"})
 }
 
 func GetTeamByID(c *gin.Context) {
-	id := c.Param("id")
 
-	var team struct {
-		TeamID       string `json:"team_id"`
-		ProjectID    string `json:"project_id"`
-		TeamLeaderID string `json:"team_leader_id"`
-		CreatedAt    string `json:"created_at"`
+	id := c.Param("id")
+	if id == "" {
+		log.Println("GetTeamByID: missing team id")
+		utils.Failed(c, http.StatusBadRequest, "Team ID is required")
+		return
 	}
+
+	var team models.Team
 
 	err := config.DB.QueryRow(`
 		SELECT team_id, project_id, team_leader_id, created_at
@@ -56,7 +75,13 @@ func GetTeamByID(c *gin.Context) {
 		Scan(&team.TeamID, &team.ProjectID, &team.TeamLeaderID, &team.CreatedAt)
 
 	if err != nil {
-		utils.Failed(c, http.StatusNotFound, "Team not found")
+		if err == sql.ErrNoRows {
+			log.Println("GetTeamByID: team not found:", id)
+			utils.Failed(c, http.StatusNotFound, "Team not found")
+			return
+		}
+		log.Println("GetTeamByID: query error:", err)
+		utils.Failed(c, http.StatusInternalServerError, "Failed to fetch team")
 		return
 	}
 
@@ -64,80 +89,135 @@ func GetTeamByID(c *gin.Context) {
 }
 
 func GetTeamsByProject(c *gin.Context) {
+
 	projectID := c.Param("project_id")
+	if projectID == "" {
+		log.Println("GetTeamsByProject: missing project id")
+		utils.Failed(c, http.StatusBadRequest, "Project ID is required")
+		return
+	}
 
 	rows, err := config.DB.Query(`
-		SELECT team_id, team_leader_id, created_at
+		SELECT team_id, project_id, team_leader_id, created_at
 		FROM team WHERE project_id = ?`, projectID)
 
 	if err != nil {
-		utils.Failed(c, http.StatusInternalServerError, err.Error())
+		log.Println("GetTeamsByProject: query error:", err)
+		utils.Failed(c, http.StatusInternalServerError, "Failed to fetch teams")
 		return
 	}
 	defer rows.Close()
 
-	var teams []map[string]interface{}
+	var teams []models.Team
 
 	for rows.Next() {
-		var teamID, leaderID, createdAt string
-		rows.Scan(&teamID, &leaderID, &createdAt)
-
-		teams = append(teams, map[string]interface{}{
-			"team_id":        teamID,
-			"team_leader_id": leaderID,
-			"created_at":     createdAt,
-		})
+		var team models.Team
+		if err := rows.Scan(
+			&team.TeamID,
+			&team.ProjectID,
+			&team.TeamLeaderID,
+			&team.CreatedAt,
+		); err != nil {
+			log.Println("GetTeamsByProject: scan error:", err)
+			utils.Failed(c, http.StatusInternalServerError, "Failed to process team data")
+			return
+		}
+		teams = append(teams, team)
 	}
 
 	utils.Success(c, teams)
 }
 
 func UpdateTeamLeader(c *gin.Context) {
+
 	id := c.Param("id")
-
-	var input struct {
-		TeamLeaderID string `json:"team_leader_id"`
-	}
-
-	if err := c.ShouldBindJSON(&input); err != nil {
-		utils.Failed(c, http.StatusBadRequest, "Invalid payload")
+	if id == "" {
+		log.Println("UpdateTeamLeader: missing team id")
+		utils.Failed(c, http.StatusBadRequest, "Team ID is required")
 		return
 	}
 
-	_, err := config.DB.Exec(`
+	var input models.UpdateTeamLeaderRequest
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		log.Println("UpdateTeamLeader: invalid payload:", err)
+		utils.Failed(c, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	result, err := config.DB.Exec(`
 		UPDATE team SET team_leader_id = ?
 		WHERE team_id = ?`,
 		input.TeamLeaderID, id)
 
 	if err != nil {
-		utils.Failed(c, http.StatusInternalServerError, err.Error())
+		log.Println("UpdateTeamLeader: update failed:", err)
+		utils.Failed(c, http.StatusInternalServerError, "Failed to update team leader")
 		return
 	}
 
-	utils.Success(c, "Team leader updated")
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		log.Println("UpdateTeamLeader: rowsAffected error:", err)
+		utils.Failed(c, http.StatusInternalServerError, "Failed to verify update result")
+		return
+	}
+
+	if rowsAffected == 0 {
+		log.Println("UpdateTeamLeader: team not found:", id)
+		utils.Failed(c, http.StatusNotFound, "Team not found")
+		return
+	}
+
+	utils.Success(c, gin.H{"message": "Team leader updated successfully"})
 }
 
 func DeleteTeam(c *gin.Context) {
-	id := c.Param("id")
 
-	_, err := config.DB.Exec("DELETE FROM team WHERE team_id = ?", id)
-	if err != nil {
-		utils.Failed(c, http.StatusInternalServerError, err.Error())
+	id := c.Param("id")
+	if id == "" {
+		log.Println("DeleteTeam: missing team id")
+		utils.Failed(c, http.StatusBadRequest, "Team ID is required")
 		return
 	}
 
-	utils.Success(c, "Team deleted successfully")
+	result, err := config.DB.Exec("DELETE FROM team WHERE team_id = ?", id)
+	if err != nil {
+		log.Println("DeleteTeam: delete failed:", err)
+		utils.Failed(c, http.StatusInternalServerError, "Failed to delete team")
+		return
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		log.Println("DeleteTeam: rowsAffected error:", err)
+		utils.Failed(c, http.StatusInternalServerError, "Failed to verify deletion")
+		return
+	}
+
+	if rowsAffected == 0 {
+		log.Println("DeleteTeam: team not found:", id)
+		utils.Failed(c, http.StatusNotFound, "Team not found")
+		return
+	}
+
+	utils.Success(c, gin.H{"message": "Team deleted successfully"})
 }
 
 func AddTeamMember(c *gin.Context) {
-	teamID := c.Param("id")
 
-	var input struct {
-		EmployeeID string `json:"employee_id"`
+	teamID := c.Param("id")
+	if teamID == "" {
+		log.Println("AddTeamMember: missing team id")
+		utils.Failed(c, http.StatusBadRequest, "Team ID is required")
+		return
 	}
 
+	var input models.AddTeamMemberRequest
+
 	if err := c.ShouldBindJSON(&input); err != nil {
-		utils.Failed(c, http.StatusBadRequest, "Invalid payload")
+		log.Println("AddTeamMember: invalid payload:", err)
+		utils.Failed(c, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
 
@@ -147,32 +227,65 @@ func AddTeamMember(c *gin.Context) {
 		teamID, input.EmployeeID)
 
 	if err != nil {
-		utils.Failed(c, http.StatusInternalServerError, err.Error())
+		if strings.Contains(err.Error(), "Duplicate") {
+			log.Println("AddTeamMember: duplicate entry:", teamID, input.EmployeeID)
+			utils.Failed(c, http.StatusConflict, "Member already exists in team")
+			return
+		}
+		log.Println("AddTeamMember: insert failed:", err)
+		utils.Failed(c, http.StatusInternalServerError, "Failed to add team member")
 		return
 	}
 
-	utils.Success(c, "Member added successfully")
+	utils.Success(c, gin.H{"message": "Member added successfully"})
 }
 
 func RemoveTeamMember(c *gin.Context) {
+
 	teamID := c.Param("id")
 	empID := c.Param("emp_id")
 
-	_, err := config.DB.Exec(`
+	if teamID == "" || empID == "" {
+		log.Println("RemoveTeamMember: missing parameters")
+		utils.Failed(c, http.StatusBadRequest, "Team ID and Employee ID are required")
+		return
+	}
+
+	result, err := config.DB.Exec(`
 		DELETE FROM team_members
 		WHERE team_id = ? AND employee_id = ?`,
 		teamID, empID)
 
 	if err != nil {
-		utils.Failed(c, http.StatusInternalServerError, err.Error())
+		log.Println("RemoveTeamMember: delete failed:", err)
+		utils.Failed(c, http.StatusInternalServerError, "Failed to remove team member")
 		return
 	}
 
-	utils.Success(c, "Member removed successfully")
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		log.Println("RemoveTeamMember: rowsAffected error:", err)
+		utils.Failed(c, http.StatusInternalServerError, "Failed to verify removal")
+		return
+	}
+
+	if rowsAffected == 0 {
+		log.Println("RemoveTeamMember: member not found in team:", teamID, empID)
+		utils.Failed(c, http.StatusNotFound, "Member not found in team")
+		return
+	}
+
+	utils.Success(c, gin.H{"message": "Member removed successfully"})
 }
 
 func GetTeamMembers(c *gin.Context) {
+
 	teamID := c.Param("id")
+	if teamID == "" {
+		log.Println("GetTeamMembers: missing team id")
+		utils.Failed(c, http.StatusBadRequest, "Team ID is required")
+		return
+	}
 
 	rows, err := config.DB.Query(`
 		SELECT e.emp_id, e.emp_name, e.email
@@ -181,22 +294,26 @@ func GetTeamMembers(c *gin.Context) {
 		WHERE tm.team_id = ?`, teamID)
 
 	if err != nil {
-		utils.Failed(c, http.StatusInternalServerError, err.Error())
+		log.Println("GetTeamMembers: query failed:", err)
+		utils.Failed(c, http.StatusInternalServerError, "Failed to fetch team members")
 		return
 	}
 	defer rows.Close()
 
-	var members []map[string]interface{}
+	var members []models.TeamMemberResponse
 
 	for rows.Next() {
-		var id, name, email string
-		rows.Scan(&id, &name, &email)
-
-		members = append(members, map[string]interface{}{
-			"emp_id": id,
-			"name":   name,
-			"email":  email,
-		})
+		var member models.TeamMemberResponse
+		if err := rows.Scan(
+			&member.EmployeeID,
+			&member.Name,
+			&member.Email,
+		); err != nil {
+			log.Println("GetTeamMembers: scan error:", err)
+			utils.Failed(c, http.StatusInternalServerError, "Failed to process member data")
+			return
+		}
+		members = append(members, member)
 	}
 
 	utils.Success(c, members)
