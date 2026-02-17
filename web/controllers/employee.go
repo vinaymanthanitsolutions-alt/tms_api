@@ -111,7 +111,7 @@ func ShowEmployees(c *gin.Context) {
 	where := "WHERE manager_id = ?"
 	args := []interface{}{managerID}
 
-	if status != "ALL" {
+	if status != "ALL" && status!= "" {
 		where += " AND status = ?"
 		args = append(args, status)
 	}

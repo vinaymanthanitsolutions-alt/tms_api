@@ -3,6 +3,7 @@ package controllers
 import (
 	"backend/internal/config"
 	"database/sql"
+	"log"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -67,10 +68,14 @@ func GetTasksByProject(c *gin.Context) {
 
 	projectID := c.Param("project_id")
 
+	log.Println("project_id :",projectID)
+
 	rows, err := config.DB.Query(`
-		SELECT id, team_id, title, status, assigned_to, deadline
-		FROM tasks
-		WHERE project_id = ?
+		 SELECT t.id, p.name, team_id, t.title, t.status, t.assigned_to, t.deadline
+		FROM tasks t
+		join project p
+		on t.project_id = p.project_id
+		WHERE t.project_id = ?
 	`, projectID)
 
 	if err != nil {
@@ -83,13 +88,14 @@ func GetTasksByProject(c *gin.Context) {
 
 	for rows.Next() {
 		var id int
-		var teamID, title, status, assignedTo string
+		var projectName,teamID, title, status, assignedTo string
 		var deadline *string
 
-		rows.Scan(&id, &teamID, &title, &status, &assignedTo, &deadline)
+		rows.Scan(&id, &projectName, &teamID, &title, &status, &assignedTo, &deadline)
 
 		tasks = append(tasks, gin.H{
 			"id":          id,
+			"projectName": projectName,
 			"teamID":      teamID,
 			"title":       title,
 			"status":      status,
