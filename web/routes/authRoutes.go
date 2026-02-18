@@ -5,10 +5,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
-
+// by all
 func Routes(server *gin.Engine) {
-	server.POST("/signup",controllers.Add) //by sarthak
-	server.POST("/login",controllers.LoginUser)
+	server.POST("/signup",controllers.Add) //by sarthak and divya
+	server.POST("/login",controllers.LoginUser)   
 	server.POST("/forgetPassword",controllers.ForgetPassword)	
 	server.POST("/verify-OTP",controllers.VerifyOtp)
 	server.POST("/updatePassword",controllers.UpdatePassword)
