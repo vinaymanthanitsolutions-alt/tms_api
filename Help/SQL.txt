@@ -145,8 +145,6 @@ CREATE TABLE tasks (
     status ENUM(
         'TODO',
         'IN_PROGRESS',
-        'DEV_DONE',
-        'TESTING',
         'COMPLETED'
     ) DEFAULT 'TODO',
 
@@ -252,7 +250,7 @@ CREATE TABLE sub_tasks (
     title VARCHAR(255) NOT NULL,
     description TEXT,
 
-    status ENUM('PENDING', 'IN_PROGRESS', 'COMPLETED') 
+    status ENUM('PENDING', 'DEVELOPMENT_DONE', 'TEST_DONE', 'COMPLETED') 
         DEFAULT 'PENDING',
 
     assigned_to VARCHAR(20),

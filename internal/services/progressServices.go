@@ -47,37 +47,63 @@ func RefreshTaskProgress(taskID int) (string, error) {
 	).Scan(&projectID)
 
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", fmt.Errorf("task not found")
+		}
 		return "", err
 	}
 
-	var progress int
+	var total, completed int
 
 	err = config.DB.QueryRow(`
 		SELECT 
-			IFNULL(
-			CAST((SUM(status = 'COMPLETED') * 100) / NULLIF(COUNT(*),0) AS UNSIGNED),
-			 0)
+			COUNT(*),
+			IFNULL(SUM(status = 'COMPLETED'),0)
 		FROM sub_tasks
 		WHERE task_id = ? AND deleted_at IS NULL
-	`, taskID).Scan(&progress)
+	`, taskID).Scan(&total, &completed)
 
 	if err != nil {
 		return "", err
 	}
 
-	_, err = config.DB.Exec(
-		`UPDATE tasks SET progress = ? WHERE id = ?`,
-		progress, taskID,
-	)
+	var progress int
+	var taskStatus string
 
-	return projectID, err
+	if total == 0 {
+		// No subtasks
+		progress = 0
+		taskStatus = "TODO"
+	} else {
+		progress = (completed * 100) / total
+
+		if completed == 0 {
+			taskStatus = "TODO"
+		} else if completed < total {
+			taskStatus = "IN_PROGRESS"
+		} else {
+			taskStatus = "COMPLETED"
+		}
+	}
+
+	_, err = config.DB.Exec(`
+		UPDATE tasks 
+		SET progress = ?, status = ?
+		WHERE id = ?
+	`, progress, taskStatus, taskID)
+
+	if err != nil {
+		return "", err
+	}
+
+	return projectID, nil
 }
 
 func RefreshProjectProgress(projectID string) error {
 	var progress int
 
 	err := config.DB.QueryRow(`
-		SELECT IFNULL(CAST(AVG(progress)AS UNSIGNED),0)
+		SELECT IFNULL(CAST(AVG(progress) AS UNSIGNED),0)
 		FROM tasks
 		WHERE project_id = ?
 	`, projectID).Scan(&progress)
@@ -86,13 +112,26 @@ func RefreshProjectProgress(projectID string) error {
 		return err
 	}
 
-	_, err = config.DB.Exec(
-		`UPDATE project SET progress = ? WHERE project_id = ?`,
-		progress, projectID,
-	)
+	var status string
+
+	if progress == 0 {
+		status = "NOT_STARTED"
+	} else if progress < 100 {
+		status = "ACTIVE"
+	} else {
+		status = "COMPLETED"
+	}
+
+	_, err = config.DB.Exec(`
+		UPDATE project 
+		SET progress = ?, status = ?
+		WHERE project_id = ?
+	`, progress, status, projectID)
 
 	return err
 }
+
+
 
 // EXAMPLE TO USE WHENEVER SUBTASK STATUS CHANGED
 // err := UpdateProgressFromSubTask(subTaskID)
