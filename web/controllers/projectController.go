@@ -347,7 +347,20 @@ func GetProjectsByAdmin(c *gin.Context) {
 		projects = append(projects, project)
 	}
 
-	utils.Success(c, projects)
+
+	var total int
+	err = config.DB.QueryRow("SELECT COUNT(*) FROM project where created_by=?",adminID).Scan(&total)
+	if err != nil {
+		utils.Failed(c, http.StatusInternalServerError, "Count failed")
+		return
+	}
+
+	utils.Success(c,gin.H{
+		"page":     page,
+		"limit":    limit,
+		"total":    total,
+		"projects": projects,		
+	})
 }
 
 func GetProjectTeamDetails(c *gin.Context) {
