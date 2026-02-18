@@ -12,7 +12,7 @@ func TaskRoutes(router *gin.Engine) {
 	{
 		taskGroup.POST("/", controllers.CreateTask)
 
-		taskGroup.GET("/project/", controllers.GetTasksByProject) // by vansh
+		taskGroup.GET("/project/", controllers.GetTasksByProject) // by vansh, by divya(taskReport).
 		taskGroup.GET("/user/:emp_id", controllers.GetTasksByUser)
 
 		taskGroup.PATCH("/:id/status", controllers.UpdateTaskStatus)

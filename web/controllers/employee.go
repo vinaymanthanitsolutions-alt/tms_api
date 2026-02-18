@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"log"
 	"math"
 	"net/http"
 	"strconv"
@@ -108,7 +109,7 @@ func ShowEmployees(c *gin.Context) {
 
 	offset := (page - 1) * limit
 
-	where := "WHERE manager_id = ?"
+	where := "WHERE e.manager_id = ?"
 	args := []interface{}{managerID}
 
 	if status != "ALL" && status!= "" {
@@ -127,7 +128,7 @@ func ShowEmployees(c *gin.Context) {
 		args = append(args, searchTerm, searchTerm)
 	}
 
-	countQuery := "SELECT COUNT(*) FROM employee " + where
+	countQuery := "SELECT COUNT(*) FROM employee e " + where
 	var total int
 	err := config.DB.QueryRow(countQuery, args...).Scan(&total)
 	if err != nil {
@@ -136,8 +137,20 @@ func ShowEmployees(c *gin.Context) {
 	}
 
 	query := `
-		SELECT emp_id,emp_name,email,phone,department,role,status
-		FROM employee
+		SELECT 
+    e.emp_id,
+    e.emp_name,
+    e.email,
+    e.phone,
+    e.department,
+    e.role,
+    e.status,
+    e.manager_id,
+    m.emp_name AS manager_name
+
+FROM employee e
+LEFT JOIN employee m 
+    ON e.manager_id = m.emp_id
 		` + where + `
 		LIMIT ? OFFSET ?`
 
@@ -145,6 +158,7 @@ func ShowEmployees(c *gin.Context) {
 
 	rows, err := config.DB.Query(query, args...)
 	if err != nil {
+		log.Println("Failed to fetch employees",err)
 		utils.Failed(c, http.StatusInternalServerError, "Failed to fetch employees")
 		return
 	}
@@ -162,6 +176,8 @@ func ShowEmployees(c *gin.Context) {
 			&emp.Department,
 			&emp.Role,
 			&emp.Status,
+			&emp.ManagerID,
+			&emp.ManagerName,
 		); err != nil {
 			utils.Failed(c, http.StatusInternalServerError, "Error scanning employees")
 			return

@@ -156,9 +156,9 @@ func GetProjectsByPM(c *gin.Context) {
 }
 
 func GetAllProjects(c *gin.Context) {
-
 	pageStr := c.DefaultQuery("page", "1")
 	limitStr := c.DefaultQuery("limit", "5")
+	search := strings.TrimSpace(c.DefaultQuery("search", ""))
 
 	page, err := strconv.Atoi(pageStr)
 	if err != nil || page < 1 {
@@ -172,10 +172,40 @@ func GetAllProjects(c *gin.Context) {
 
 	offset := (page - 1) * limit
 
-	rows, err := config.DB.Query(
-		"SELECT project_id, name, description, created_by, pm_id, status, deadline FROM project LIMIT ? OFFSET ?",
-		limit, offset,
-	)
+	query := `
+		SELECT 
+			p.project_id,
+			p.name,
+			p.description,
+			p.created_by,
+			p.pm_id,
+			pm.emp_name AS pm_name,
+			pm.manager_id AS pm_manager_id,
+			pm_mgr.emp_name AS pm_manager_name,
+			p.status,
+			p.progress,
+			p.deadline
+		FROM project p
+		LEFT JOIN employee pm ON p.pm_id = pm.emp_id
+		LEFT JOIN employee pm_mgr ON pm.manager_id = pm_mgr.emp_id
+	`
+	args := []interface{}{}
+	where := ""
+
+	if search != "" {
+		where = `WHERE p.name LIKE ? OR p.description LIKE ? OR p.pm_id LIKE ?`
+		searchPattern := "%" + search + "%"
+		args = append(args, searchPattern, searchPattern, searchPattern)
+	}
+
+	if where != "" {
+		query += " " + where
+	}
+
+	query += " LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
+
+	rows, err := config.DB.Query(query, args...)
 	if err != nil {
 		utils.Failed(c, http.StatusInternalServerError, "Fetch failed")
 		return
@@ -185,24 +215,36 @@ func GetAllProjects(c *gin.Context) {
 	var projects []map[string]interface{}
 
 	for rows.Next() {
-		var projectID, name, description, createdBy, pmID, status string
+		var projectID, name, description, createdBy, pmID, pmName, status string
+		var pmManagerID, pmManagerName sql.NullString
+		var progress int
 		var deadline sql.NullTime
 
-		if err := rows.Scan(&projectID, &name, &description, &createdBy, &pmID, &status, &deadline); err != nil {
+		if err := rows.Scan(&projectID, &name, &description, &createdBy, &pmID, &pmName, &pmManagerID, &pmManagerName, &status, &progress, &deadline); err != nil {
 			utils.Failed(c, http.StatusInternalServerError, "Scan error")
 			return
 		}
 
 		project := map[string]interface{}{
-			"project_id":  projectID,
-			"name":        name,
-			"description": description,
-			"created_by":  createdBy,
-			"pm_id":       pmID,
-			"status":      status,
-			"deadline":    nil,
+			"project_id":      projectID,
+			"name":            name,
+			"description":     description,
+			"created_by":      createdBy,
+			"pm_id":           pmID,
+			"pm_name":         pmName,
+			"pm_manager_id":   nil,
+			"pm_manager_name": nil,
+			"status":          status,
+			"progress":        progress,
+			"deadline":        nil,
 		}
 
+		if pmManagerID.Valid {
+			project["pm_manager_id"] = pmManagerID.String
+		}
+		if pmManagerName.Valid {
+			project["pm_manager_name"] = pmManagerName.String
+		}
 		if deadline.Valid {
 			project["deadline"] = deadline.Time.Format("2006-01-02 15:04:05")
 		}
@@ -210,8 +252,16 @@ func GetAllProjects(c *gin.Context) {
 		projects = append(projects, project)
 	}
 
+	countQuery := "SELECT COUNT(*) FROM project p"
+	countArgs := []interface{}{}
+	if search != "" {
+		countQuery += " WHERE p.name LIKE ? OR p.description LIKE ? OR p.pm_id LIKE ?"
+		searchPattern := "%" + search + "%"
+		countArgs = append(countArgs, searchPattern, searchPattern, searchPattern)
+	}
+
 	var total int
-	err = config.DB.QueryRow("SELECT COUNT(*) FROM project").Scan(&total)
+	err = config.DB.QueryRow(countQuery, countArgs...).Scan(&total)
 	if err != nil {
 		utils.Failed(c, http.StatusInternalServerError, "Count failed")
 		return
@@ -289,23 +339,31 @@ func GetProjectsByAdmin(c *gin.Context) {
 	search := strings.TrimSpace(c.DefaultQuery("search", ""))
 
 	query := `
-		SELECT project_id, name, description, pm_id, status, deadline 
-		FROM project 
-		WHERE created_by = ?
+		SELECT 
+			p.project_id,
+			p.name,
+			p.description,
+			p.pm_id,
+			p.status,
+			p.deadline,
+			p.progress,
+			e.emp_name AS admin_name
+		FROM project p
+		LEFT JOIN employee e ON p.created_by = e.emp_id
+		WHERE p.created_by = ?
 	`
 	args := []interface{}{adminID}
 
 	if search != "" {
-	query += `
-	 AND (
-		name LIKE ? 
-		OR description LIKE ? 
-		OR pm_id = ?
-	 )`
-
-	searchPattern := "%" + search + "%"
-	args = append(args, searchPattern, searchPattern, search)
-}
+		query += `
+		 AND (
+			p.name LIKE ? 
+			OR p.description LIKE ? 
+			OR p.pm_id = ?
+		 )`
+		searchPattern := "%" + search + "%"
+		args = append(args, searchPattern, searchPattern, search)
+	}
 
 	query += " LIMIT ? OFFSET ?"
 	args = append(args, limit, offset)
@@ -319,11 +377,11 @@ func GetProjectsByAdmin(c *gin.Context) {
 
 	var projects []map[string]interface{}
 	for rows.Next() {
-		var projectID, name, description, status string
-		var pmID sql.NullString
+		var projectID, name, description, pmID, status, adminName string
 		var deadline sql.NullTime
+		var progress int
 
-		if err := rows.Scan(&projectID, &name, &description, &pmID, &status, &deadline); err != nil {
+		if err := rows.Scan(&projectID, &name, &description, &pmID, &status, &deadline,&progress, &adminName); err != nil {
 			utils.Failed(c, http.StatusInternalServerError, "Scan error")
 			return
 		}
@@ -332,14 +390,14 @@ func GetProjectsByAdmin(c *gin.Context) {
 			"project_id":  projectID,
 			"name":        name,
 			"description": description,
-			"pm_id":       nil,
+			"pm_id":       pmID,
 			"status":      status,
 			"deadline":    nil,
+			"progress":    progress,
+			"admin_id":    adminID,
+			"admin_name":  adminName,
 		}
 
-		if pmID.Valid {
-			project["pm_id"] = pmID.String
-		}
 		if deadline.Valid {
 			project["deadline"] = deadline.Time.Format("2006-01-02 15:04:05")
 		}
@@ -347,19 +405,18 @@ func GetProjectsByAdmin(c *gin.Context) {
 		projects = append(projects, project)
 	}
 
-
 	var total int
-	err = config.DB.QueryRow("SELECT COUNT(*) FROM project where created_by=?",adminID).Scan(&total)
+	err = config.DB.QueryRow("SELECT COUNT(*) FROM project WHERE created_by=?", adminID).Scan(&total)
 	if err != nil {
 		utils.Failed(c, http.StatusInternalServerError, "Count failed")
 		return
 	}
 
-	utils.Success(c,gin.H{
+	utils.Success(c, gin.H{
 		"page":     page,
 		"limit":    limit,
 		"total":    total,
-		"projects": projects,		
+		"projects": projects,
 	})
 }
 

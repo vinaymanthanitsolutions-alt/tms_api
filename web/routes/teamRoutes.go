@@ -7,7 +7,7 @@ import (
 )
 
 func TeamRouter(r *gin.Engine) {
-	r.POST("/teams", controllers.CreateTeam)
+	r.POST("/teams", controllers.CreateTeam) // will used by vansh
 	r.GET("/teams/:id", controllers.GetTeamByID)
 	r.GET("/projects/:project_id/teams", controllers.GetTeamsByProject)
 	r.PUT("/teams/:id", controllers.UpdateTeamLeader)

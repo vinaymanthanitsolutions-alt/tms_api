@@ -12,14 +12,16 @@ type UserGet struct {
 }
 
 type UserShow struct {
-	EmpID      string `json:"emp_id" binding:"required"`
-	EmpName    string `json:"emp_name" binding:"required"`
-	Email    string `json:"email" binding:"required"`
-	Phone      string `json:"phone"`
-	Password   string `json:"password" binding:"required"`
-	Department string `json:"department"`
-	Role       string `json:"role" binding:"required"`
-	Status    string  `json:"status"`
+    EmpID       string `json:"emp_id" binding:"required"`
+    EmpName     string `json:"emp_name" binding:"required"`
+    Email       string `json:"email" binding:"required"`
+    Phone       string `json:"phone"`
+    Password    string `json:"password" binding:"required"`
+    Department  string `json:"department"`
+    Role        string `json:"role" binding:"required"`
+    Status      string `json:"status"`
+    ManagerID   string `json:"manager_id,omitempty"`   // OMITEMPTY SKIPS FEILD LIKE WHEN MANAGER IS NULL (SUPER_ADMIN)
+    ManagerName string `json:"manager_name,omitempty"` 
 }
 
 type UserUpdate struct {

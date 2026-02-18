@@ -7,7 +7,7 @@ import (
 )
 
 func Router(server *gin.Engine) {
-	server.GET("/emp", controllers.ShowEmployees) // used vansh, by sarthak
+	server.GET("/emp", controllers.ShowEmployees) // used vansh, by sarthak,managerID ,managerName Added for divya(for users).
 	server.GET("empAllUnderSameManager",controllers.GetEmployeesUnderSameManager) 
 	server.DELETE("/emp/:emp_id",controllers.DeleteUser)  //by sarthak
 	server.PUT("/emp/:emp_id",controllers.UpdateProfile)  //by sarthak

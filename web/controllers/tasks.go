@@ -93,10 +93,12 @@ func GetTasksByProject(c *gin.Context) {
 		t.id,
 		p.name AS project_name,
 		t.team_id,
+		t.created_by,
 		t.title,
 		t.status,
 		t.assigned_to,
 		e.emp_name AS tl_name,
+		e.department,
 		t.deadline
 	FROM tasks t
 	JOIN project p ON t.project_id = p.project_id
@@ -131,7 +133,7 @@ func GetTasksByProject(c *gin.Context) {
 
 	for rows.Next() {
 		var id int
-		var projectName, teamID, title, status, assignedTo string
+		var projectName, teamID, managerID, department,  title, status, assignedTo string
 		var teamLeaderName sql.NullString
 		var deadline sql.NullString
 
@@ -139,6 +141,8 @@ func GetTasksByProject(c *gin.Context) {
 			&id,
 			&projectName,
 			&teamID,
+			&managerID,
+			&department,
 			&title,
 			&status,
 			&assignedTo,
