@@ -73,8 +73,8 @@ func ShowEmployees(c *gin.Context) {
 	// GET /emp?emp_id=SA001&role=SUPER_ADMIN&status=ALL&filter_role=ADMIN&page=1&limit=10
 
 	managerID := strings.TrimSpace(c.Query("emp_id"))   
-	currentUserRole := strings.TrimSpace(c.Query("currentUserRole")) 
-	filterRole := strings.TrimSpace(c.Query("role")) 
+	currentUserRole := strings.TrimSpace(c.Query("role")) 
+	filterRole := strings.TrimSpace(c.Query("filter_role")) 
 
 	if currentUserRole != "SUPER_ADMIN" && managerID == "" {
 		utils.Failed(c, http.StatusBadRequest, "emp_id is required")

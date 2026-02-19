@@ -193,9 +193,9 @@ func GetAllProjects(c *gin.Context) {
 	where := ""
 
 	if search != "" {
-		where = `WHERE p.name LIKE ? OR p.description LIKE ? OR p.pm_id LIKE ?`
+		where = `WHERE p.name LIKE ? OR p.description LIKE ? OR p.pm_id LIKE ? OR p.created_by LIKE ?`
 		searchPattern := "%" + search + "%"
-		args = append(args, searchPattern, searchPattern, searchPattern)
+		args = append(args, searchPattern, searchPattern, searchPattern,searchPattern)
 	}
 
 	if where != "" {
