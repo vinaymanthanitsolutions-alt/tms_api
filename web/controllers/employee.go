@@ -70,12 +70,13 @@ func Add(c *gin.Context) {
 
 func ShowEmployees(c *gin.Context) {
 
-	// GET /emp?emp_id=SA001&role=MANAGER&status=ACTIVE&page=2&limit=5&search=ayu
+	// GET /emp?emp_id=SA001&role=SUPER_ADMIN&status=ALL&filter_role=ADMIN&page=1&limit=10
 
-	managerID := strings.TrimSpace(c.Query("emp_id"))
-	role := strings.TrimSpace(c.Query("role"))
-	
-	if role != "SUPER_ADMIN" && managerID == "" {
+	managerID := strings.TrimSpace(c.Query("emp_id"))   
+	currentUserRole := strings.TrimSpace(c.Query("currentUserRole")) 
+	filterRole := strings.TrimSpace(c.Query("role")) 
+
+	if currentUserRole != "SUPER_ADMIN" && managerID == "" {
 		utils.Failed(c, http.StatusBadRequest, "emp_id is required")
 		return
 	}
@@ -99,38 +100,47 @@ func ShowEmployees(c *gin.Context) {
 	offset := (page - 1) * limit
 
 	conditions := []string{}
-	filterArgs := []interface{}{}
+	args := []interface{}{}
 
-	if role != "SUPER_ADMIN" {
+	
+	if currentUserRole != "SUPER_ADMIN" {
 		conditions = append(conditions, "e.manager_id = ?")
-		filterArgs = append(filterArgs, managerID)
+		args = append(args, managerID)
 	}
 
 	if status != "" && status != "ALL" {
 		conditions = append(conditions, "e.status = ?")
-		filterArgs = append(filterArgs, status)
+		args = append(args, status)
 	}
 
-	if role != "" && role != "SUPER_ADMIN" {
+	if filterRole != "" && filterRole != "ALL" {
+	
+		if currentUserRole != "SUPER_ADMIN" && filterRole == "SUPER_ADMIN" {
+			utils.Failed(c, http.StatusForbidden, "Not allowed to view SUPER_ADMIN")
+			return
+		}
 		conditions = append(conditions, "e.role = ?")
-		filterArgs = append(filterArgs, role)
+		args = append(args, filterRole)
 	}
+
 
 	if search != "" {
 		conditions = append(conditions, "(e.emp_id LIKE ? OR e.emp_name LIKE ?)")
 		searchTerm := "%" + search + "%"
-		filterArgs = append(filterArgs, searchTerm, searchTerm)
+		args = append(args, searchTerm, searchTerm)
 	}
+
 
 	where := ""
 	if len(conditions) > 0 {
 		where = " WHERE " + strings.Join(conditions, " AND ")
 	}
 
+	
 	countQuery := "SELECT COUNT(*) FROM employee e" + where
 
 	var total int
-	err := config.DB.QueryRow(countQuery, filterArgs...).Scan(&total)
+	err := config.DB.QueryRow(countQuery, args...).Scan(&total)
 	if err != nil {
 		utils.Failed(c, http.StatusInternalServerError, "Failed to count employees")
 		return
@@ -153,7 +163,7 @@ func ShowEmployees(c *gin.Context) {
 	` + where + `
 		LIMIT ? OFFSET ?`
 
-	queryArgs := append([]interface{}{}, filterArgs...)
+	queryArgs := append([]interface{}{}, args...)
 	queryArgs = append(queryArgs, limit, offset)
 
 	rows, err := config.DB.Query(query, queryArgs...)
@@ -185,6 +195,7 @@ func ShowEmployees(c *gin.Context) {
 			return
 		}
 
+		
 		if emp.Role == "SUPER_ADMIN" {
 			continue
 		}
