@@ -238,41 +238,64 @@ func UpdateTaskStatus(c *gin.Context) {
 }
 
 func UpdateTask(c *gin.Context) {
-
+	
 	taskID := c.Param("id")
 
 	var input struct {
-		Title       string `json:"title"`
-		Description string `json:"description"`
-		AssignedTo  string `json:"assigned_to"`
-		Deadline    string `json:"deadline"`
-		Status      string `json:"status"`
+		Title       *string `json:"title"`
+		Description *string `json:"description"`
+		AssignedTo  *string `json:"assigned_to"`
+		Deadline    *string `json:"deadline"`
+		Status      *string `json:"status"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		utils.Failed(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	_, err := config.DB.Exec(`
-		UPDATE tasks
-		SET title = ?, description = ?, assigned_to = ?, deadline = ?, status = ?
-		WHERE id = ?
-	`,
-		input.Title,
-		input.Description,
-		input.AssignedTo,
-		input.Deadline,
-		input.Status,
-		taskID,
-	)
+	query := "UPDATE tasks SET "
+	args := []interface{}{}
 
+	if input.Title != nil {
+		query += "title = ?, "
+		args = append(args, *input.Title)
+	}
+
+	if input.Description != nil && *input.Description != "" {
+		query += "description = ?, "
+		args = append(args, *input.Description)
+	}
+
+	if input.AssignedTo != nil {
+		query += "assigned_to = ?, "
+		args = append(args, *input.AssignedTo)
+	}
+
+	if input.Deadline != nil {
+		query += "deadline = ?, "
+		args = append(args, *input.Deadline)
+	}
+
+	if input.Status != nil {
+		query += "status = ?, "
+		args = append(args, *input.Status)
+	}
+
+	if len(args) == 0 {
+		utils.Failed(c, http.StatusBadRequest, "No valid fields to update")
+		return
+	}
+	query = query[:len(query)-2] + " WHERE id = ?"
+	args = append(args, taskID)
+
+	_, err := config.DB.Exec(query, args...)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		utils.Failed(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	c.JSON(200, gin.H{"message": "Task updated successfully"})
+	utils.Success(c, gin.H{"message": "Task updated successfully"})
 }
 
 func DeleteTask(c *gin.Context) {

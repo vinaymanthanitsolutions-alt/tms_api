@@ -98,8 +98,18 @@ func GetTeamsByProject(c *gin.Context) {
 	}
 
 	rows, err := config.DB.Query(`
-		SELECT team_id, project_id, team_leader_id, created_at
-		FROM team WHERE project_id = ?`, projectID)
+		SELECT 
+			t.team_id,
+			t.project_id,
+			t.team_leader_id,
+			e.emp_name AS tl_name,
+			t.created_at
+		FROM team t
+		JOIN employee e 
+			ON t.team_leader_id = e.emp_id
+		WHERE t.project_id = ?
+		AND t.deleted_at IS NULL
+	`, projectID)
 
 	if err != nil {
 		log.Println("GetTeamsByProject: query error:", err)
@@ -116,6 +126,7 @@ func GetTeamsByProject(c *gin.Context) {
 			&team.TeamID,
 			&team.ProjectID,
 			&team.TeamLeaderID,
+			&team.TLName,
 			&team.CreatedAt,
 		); err != nil {
 			log.Println("GetTeamsByProject: scan error:", err)

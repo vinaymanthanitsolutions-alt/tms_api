@@ -74,7 +74,7 @@ func ShowEmployees(c *gin.Context) {
 
 	managerID := strings.TrimSpace(c.Query("emp_id"))
 	role := strings.TrimSpace(c.Query("role"))
-
+	
 	if role != "SUPER_ADMIN" && managerID == "" {
 		utils.Failed(c, http.StatusBadRequest, "emp_id is required")
 		return
