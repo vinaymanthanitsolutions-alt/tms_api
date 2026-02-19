@@ -20,8 +20,8 @@ type UserShow struct {
     Department  string `json:"department"`
     Role        string `json:"role" binding:"required"`
     Status      string `json:"status"`
-    ManagerID   string `json:"manager_id,omitempty"`   // OMITEMPTY SKIPS FEILD LIKE WHEN MANAGER IS NULL (SUPER_ADMIN)
-    ManagerName string `json:"manager_name,omitempty"` 
+    ManagerID   *string `json:"manager_id,omitempty"`   // OMITEMPTY SKIPS FEILD LIKE WHEN MANAGER IS NULL (SUPER_ADMIN)
+    ManagerName *string `json:"manager_name,omitempty"` 
 }
 
 type UserUpdate struct {

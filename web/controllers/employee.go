@@ -2,9 +2,9 @@ package controllers
 
 import (
 	"log"
-	"math"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"backend/internal/config"
 	"backend/internal/utils"
@@ -70,29 +70,18 @@ func Add(c *gin.Context) {
 
 func ShowEmployees(c *gin.Context) {
 
-	// GET /emp?emp_id=SA001&status=ACTIVE&page=2&limit=5&search=ayu example api call
+	// GET /emp?emp_id=SA001&role=MANAGER&status=ACTIVE&page=2&limit=5&search=ayu
 
-	managerID := c.Query("emp_id")
-	role:= c.Query("role")
-	if managerID == "" {
+	managerID := strings.TrimSpace(c.Query("emp_id"))
+	role := strings.TrimSpace(c.Query("role"))
 
+	if role != "SUPER_ADMIN" && managerID == "" {
 		utils.Failed(c, http.StatusBadRequest, "emp_id is required")
 		return
 	}
 
-	// managerID, exists := c.Get("emp_id")
-	// if !exists {
-	// 	utils.Failed(c, http.StatusUnauthorized, "Unauthorized")
-	// 	return
-	// }
-
-	status := c.Query("status")
-	// if status == "" {
-	// 	utils.Failed(c, http.StatusBadRequest, "status is required")
-	// 	return
-	// }
-
-	search := c.Query("search")
+	status := strings.TrimSpace(c.Query("status"))
+	search := strings.TrimSpace(c.Query("search"))
 
 	pageStr := c.DefaultQuery("page", "1")
 	limitStr := c.DefaultQuery("limit", "10")
@@ -103,34 +92,45 @@ func ShowEmployees(c *gin.Context) {
 	}
 
 	limit, _ := strconv.Atoi(limitStr)
-	if limit < 1 {
+	if limit < 1 || limit > 100 {
 		limit = 10
 	}
 
 	offset := (page - 1) * limit
 
-	where := "WHERE e.manager_id = ?"
-	args := []interface{}{managerID}
+	conditions := []string{}
+	filterArgs := []interface{}{}
 
-	if status != "ALL" && status!= "" {
-		where += " AND status = ?"
-		args = append(args, status)
+	if role != "SUPER_ADMIN" {
+		conditions = append(conditions, "e.manager_id = ?")
+		filterArgs = append(filterArgs, managerID)
 	}
 
-	if role != ""{
-		where+=" AND role = ? "
-		args=append(args,role)
+	if status != "" && status != "ALL" {
+		conditions = append(conditions, "e.status = ?")
+		filterArgs = append(filterArgs, status)
+	}
+
+	if role != "" && role != "SUPER_ADMIN" {
+		conditions = append(conditions, "e.role = ?")
+		filterArgs = append(filterArgs, role)
 	}
 
 	if search != "" {
-		where += " AND (emp_id LIKE ? OR emp_name LIKE ?)"
+		conditions = append(conditions, "(e.emp_id LIKE ? OR e.emp_name LIKE ?)")
 		searchTerm := "%" + search + "%"
-		args = append(args, searchTerm, searchTerm)
+		filterArgs = append(filterArgs, searchTerm, searchTerm)
 	}
 
-	countQuery := "SELECT COUNT(*) FROM employee e " + where
+	where := ""
+	if len(conditions) > 0 {
+		where = " WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	countQuery := "SELECT COUNT(*) FROM employee e" + where
+
 	var total int
-	err := config.DB.QueryRow(countQuery, args...).Scan(&total)
+	err := config.DB.QueryRow(countQuery, filterArgs...).Scan(&total)
 	if err != nil {
 		utils.Failed(c, http.StatusInternalServerError, "Failed to count employees")
 		return
@@ -138,27 +138,27 @@ func ShowEmployees(c *gin.Context) {
 
 	query := `
 		SELECT 
-    e.emp_id,
-    e.emp_name,
-    e.email,
-    e.phone,
-    e.department,
-    e.role,
-    e.status,
-    e.manager_id,
-    m.emp_name AS manager_name
-
-FROM employee e
-LEFT JOIN employee m 
-    ON e.manager_id = m.emp_id
-		` + where + `
+			e.emp_id,
+			e.emp_name,
+			e.email,
+			e.phone,
+			e.department,
+			e.role,
+			e.status,
+			e.manager_id,
+			m.emp_name AS manager_name
+		FROM employee e
+		LEFT JOIN employee m 
+			ON e.manager_id = m.emp_id
+	` + where + `
 		LIMIT ? OFFSET ?`
 
-	args = append(args, limit, offset)
+	queryArgs := append([]interface{}{}, filterArgs...)
+	queryArgs = append(queryArgs, limit, offset)
 
-	rows, err := config.DB.Query(query, args...)
+	rows, err := config.DB.Query(query, queryArgs...)
 	if err != nil {
-		log.Println("Failed to fetch employees",err)
+		log.Println("Failed to fetch employees:", err)
 		utils.Failed(c, http.StatusInternalServerError, "Failed to fetch employees")
 		return
 	}
@@ -168,6 +168,7 @@ LEFT JOIN employee m
 
 	for rows.Next() {
 		var emp models.UserShow
+
 		if err := rows.Scan(
 			&emp.EmpID,
 			&emp.EmpName,
@@ -179,23 +180,24 @@ LEFT JOIN employee m
 			&emp.ManagerID,
 			&emp.ManagerName,
 		); err != nil {
+			log.Println("Scan error:", err)
 			utils.Failed(c, http.StatusInternalServerError, "Error scanning employees")
 			return
 		}
+
+		if emp.Role == "SUPER_ADMIN" {
+			continue
+		}
+
 		employees = append(employees, emp)
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    employees,
-		"pagination": gin.H{
-			"page":        page,
-			"limit":       limit,
-			"total":       total,
-			"total_pages": int(math.Ceil(float64(total) / float64(limit))),
-		},
+	utils.Success(c, gin.H{
+		"page":  page,
+		"limit": limit,
+		"total": total,
+		"data":  employees,
 	})
-
 }
 
 func DeleteUser(c *gin.Context) {
@@ -393,9 +395,9 @@ func GetEmployeesUnderSameManager(c *gin.Context) {
 	}
 
 	if len(employees) == 0 {
-		utils.Success(c,  []models.EmployeeUnderManager{})
+		utils.Success(c, []models.EmployeeUnderManager{})
 		return
 	}
 
-	utils.Success(c,  employees)
+	utils.Success(c, employees)
 }
