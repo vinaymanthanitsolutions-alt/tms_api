@@ -3,11 +3,11 @@ package controllers
 import (
 	"backend/internal/config"
 	"backend/internal/utils"
+	"backend/web/models"
 	"database/sql"
 	"log"
 	"net/http"
 	"strconv"
-	"backend/web/models"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -90,20 +90,25 @@ func GetTasksByProject(c *gin.Context) {
 
 	query := `
 	SELECT 
-		t.project_id,
-		p.name AS project_name,
-		t.team_id,
-		t.created_by,
-		t.title,
-		t.status,
-		t.assigned_to,
-		e.emp_name AS tl_name,
-		e.department,
-		t.deadline
-	FROM tasks t
-	JOIN project p ON t.project_id = p.project_id
-	LEFT JOIN employee e ON t.assigned_to = e.emp_id
-	WHERE t.project_id = ?
+	t.project_id,
+	p.name AS project_name,
+	t.team_id,
+	t.created_by,
+	t.title,
+	t.status,
+	t.assigned_to,
+	tl.emp_id AS tl_id,
+	tl.emp_name AS tl_name,
+	tl.department,
+	t.deadline
+FROM tasks t
+JOIN project p 
+	ON t.project_id = p.project_id
+LEFT JOIN team tm 
+	ON t.team_id = tm.team_id
+LEFT JOIN employee tl 
+	ON tm.team_leader_id = tl.emp_id
+WHERE t.project_id = ?
 	`
 
 	args := []interface{}{projectID}
@@ -133,25 +138,25 @@ func GetTasksByProject(c *gin.Context) {
 
 	for rows.Next() {
 		var project_id string
-		var projectName, teamID, managerID, department,  title, status, assignedTo string
+		var projectName, teamID, createdBy, title, status, assignedTo, teamLeaderID, department string
 		var teamLeaderName sql.NullString
 		var deadline sql.NullString
 
 		err := rows.Scan(
-			&project_id,
-			&projectName,
-			&teamID,
-			&managerID,
-			&department,
-			&title,
-			&status,
-			&assignedTo,
+			&project_id,     
+			&projectName,    
+			&teamID,         
+			&createdBy,      
+			&title,          
+			&status,         
+			&assignedTo,     
+			&teamLeaderID,   
 			&teamLeaderName,
-			&deadline,
+			&department,     
+			&deadline,       
 		)
-
 		if err != nil {
-			log.Println("GetTasksByProject Scan error:", err) 
+			log.Println("GetTasksByProject Scan error:", err)
 			utils.Failed(c, http.StatusInternalServerError, "Scan failed")
 			return
 		}
@@ -160,21 +165,22 @@ func GetTasksByProject(c *gin.Context) {
 			"project_id":     project_id,
 			"projectName":    projectName,
 			"teamID":         teamID,
-			"managerID":      managerID,
-			"department":     department,
+			"createdBy":      createdBy,
 			"title":          title,
 			"status":         status,
 			"assigned_to":    assignedTo,
+			"teamLeaderID":   teamLeaderID,
 			"teamLeaderName": teamLeaderName.String,
+			"department":     department,
 			"deadline":       deadline.String,
 		})
 	}
 
 	utils.Success(c, gin.H{
-	"page":  page,
-	"limit": limit,
-	"data":  tasks,
-})
+		"page":  page,
+		"limit": limit,
+		"data":  tasks,
+	})
 }
 
 func GetTasksByUser(c *gin.Context) {
