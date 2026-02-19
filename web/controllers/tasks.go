@@ -90,6 +90,7 @@ func GetTasksByProject(c *gin.Context) {
 
 	query := `
 	SELECT 
+	t.id,
 	t.project_id,
 	p.name AS project_name,
 	t.team_id,
@@ -137,12 +138,13 @@ WHERE t.project_id = ?
 	var tasks []gin.H
 
 	for rows.Next() {
-		var project_id string
-		var projectName, teamID, createdBy, title, status, assignedTo, teamLeaderID, department string
+		var id string
+		var project_id, projectName, teamID, createdBy, title, status, assignedTo, teamLeaderID, department string
 		var teamLeaderName sql.NullString
 		var deadline sql.NullString
 
 		err := rows.Scan(
+			&id,
 			&project_id,     
 			&projectName,    
 			&teamID,         
@@ -162,6 +164,7 @@ WHERE t.project_id = ?
 		}
 
 		tasks = append(tasks, gin.H{
+			"id":             id,
 			"project_id":     project_id,
 			"projectName":    projectName,
 			"teamID":         teamID,
