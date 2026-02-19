@@ -11,4 +11,5 @@ func SubTasksRoutes(r *gin.Engine) {
 	r.PUT("/subtasks/:id/status", controllers.UpdateSubTaskStatus)
 	r.DELETE("/subtasks/:id", controllers.DeleteSubTask)
 	r.GET("/tasks/:task_id/subtasks", controllers.GetSubTasksByTask)
+	r.GET("/team/members-subtasks", controllers.GetTeamMembersWithSubTasks) //will used by divya
 }
