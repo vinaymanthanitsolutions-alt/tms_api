@@ -90,7 +90,7 @@ func GetTasksByProject(c *gin.Context) {
 
 	query := `
 	SELECT 
-		t.id,
+		t.project_id,
 		p.name AS project_name,
 		t.team_id,
 		t.created_by,
@@ -132,13 +132,13 @@ func GetTasksByProject(c *gin.Context) {
 	var tasks []gin.H
 
 	for rows.Next() {
-		var id int
+		var project_id string
 		var projectName, teamID, managerID, department,  title, status, assignedTo string
 		var teamLeaderName sql.NullString
 		var deadline sql.NullString
 
 		err := rows.Scan(
-			&id,
+			&project_id,
 			&projectName,
 			&teamID,
 			&managerID,
@@ -157,9 +157,11 @@ func GetTasksByProject(c *gin.Context) {
 		}
 
 		tasks = append(tasks, gin.H{
-			"id":             id,
+			"project_id":     project_id,
 			"projectName":    projectName,
 			"teamID":         teamID,
+			"managerID":      managerID,
+			"department":     department,
 			"title":          title,
 			"status":         status,
 			"assigned_to":    assignedTo,
@@ -238,7 +240,7 @@ func UpdateTaskStatus(c *gin.Context) {
 }
 
 func UpdateTask(c *gin.Context) {
-	
+
 	taskID := c.Param("id")
 
 	var input struct {
