@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
-
+//ALL CHECK
 func QueryRoutes(r *gin.Engine) {
 	query := r.Group("/query")
 

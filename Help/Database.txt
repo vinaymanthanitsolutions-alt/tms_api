@@ -1,0 +1,331 @@
+SUPER_ADMIN
+   │
+   └── ADMIN
+          │
+          └── PROJECT_MANAGER
+                 │
+                 ├── TEAM_LEADER
+                 │       │
+                 │       ├── DEVELOPER
+                 │       └── TESTER
+                 │
+                 └── creates TASK
+                          │
+                          └── TEAM_LEADER creates SUBTASK
+                                   │
+                                   ├── DEVELOPER updates
+                                   ├── TESTER updates
+                                   └── raises QUERY
+
+
+ CREATE TABLE employee_master (
+
+    employee_sr_no INT AUTO_INCREMENT PRIMARY KEY,
+
+    employee_id VARCHAR(20) UNIQUE NOT NULL,
+    employee_name VARCHAR(100) NOT NULL,
+
+    employee_email VARCHAR(100) UNIQUE NOT NULL,
+    employee_phone VARCHAR(15) UNIQUE,
+
+    employee_password VARCHAR(255) NOT NULL,
+
+    employee_department ENUM('HEAD','IT','SALES') NOT NULL,
+
+    employee_role ENUM(
+        'SUPER_ADMIN',
+        'ADMIN',
+        'PROJECT_MANAGER',
+        'TEAM_LEADER',
+        'DEVELOPER',
+        'TESTER'
+    ) NOT NULL,
+
+    employee_status ENUM(
+        'ACTIVE',
+        'INACTIVE',
+        'SUSPENDED'
+    ) DEFAULT 'ACTIVE',
+
+    manager_employee_id VARCHAR(20),
+    pm_employee_id VARCHAR(20),
+
+    employee_otp VARCHAR(10),
+    otp_expire_at DATETIME,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+
+    CONSTRAINT fk_employee_manager
+        FOREIGN KEY (manager_employee_id)
+        REFERENCES employee_master(employee_id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
+
+    CONSTRAINT fk_employee_pm
+        FOREIGN KEY (pm_employee_id)
+        REFERENCES employee_master(employee_id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL
+
+);
+
+CREATE TABLE project_master (
+
+    project_sr_no INT AUTO_INCREMENT PRIMARY KEY,
+
+    project_id VARCHAR(20) UNIQUE NOT NULL,
+
+    project_title VARCHAR(200) NOT NULL,
+    project_description TEXT,
+
+    project_created_by VARCHAR(20) NOT NULL,
+    project_manager_id VARCHAR(20),
+
+    project_status ENUM(
+        'PLANNING',
+        'ACTIVE',
+        'COMPLETED'
+    ) DEFAULT 'PLANNING',
+
+    project_progress INT DEFAULT 0,
+
+    project_deadline DATETIME,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+
+    CONSTRAINT fk_project_created_by
+        FOREIGN KEY (project_created_by)
+        REFERENCES employee_master(employee_id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    CONSTRAINT fk_project_manager
+        FOREIGN KEY (project_manager_id)
+        REFERENCES employee_master(employee_id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL
+
+);
+
+CREATE TABLE team_master (
+
+    team_id VARCHAR(25) PRIMARY KEY,
+
+    project_id VARCHAR(20) NOT NULL,
+
+    team_leader_employee_id VARCHAR(20) NOT NULL,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+
+    CONSTRAINT fk_team_project
+        FOREIGN KEY (project_id)
+        REFERENCES project_master(project_id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_team_leader
+        FOREIGN KEY (team_leader_employee_id)
+        REFERENCES employee_master(employee_id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
+
+);
+
+
+CREATE TABLE team_member_mapping (
+
+    team_id VARCHAR(25),
+    employee_id VARCHAR(20),
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (team_id, employee_id),
+
+    CONSTRAINT fk_mapping_team
+        FOREIGN KEY (team_id)
+        REFERENCES team_master(team_id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_mapping_employee
+        FOREIGN KEY (employee_id)
+        REFERENCES employee_master(employee_id)
+        ON DELETE CASCADE
+
+);
+
+
+CREATE TABLE task_master (
+
+    task_id INT AUTO_INCREMENT PRIMARY KEY,
+
+    project_id VARCHAR(20) NOT NULL,
+    team_id VARCHAR(25) NOT NULL,
+
+    task_title VARCHAR(255) NOT NULL,
+    task_description TEXT,
+
+    assigned_to_employee_id VARCHAR(20),
+    created_by_employee_id VARCHAR(20),
+
+    task_status ENUM(
+        'TODO',
+        'IN_PROGRESS',
+        'COMPLETED'
+    ) DEFAULT 'TODO',
+
+    task_progress INT DEFAULT 0,
+
+    task_deadline DATETIME,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+
+    CONSTRAINT fk_task_project
+        FOREIGN KEY (project_id)
+        REFERENCES project_master(project_id),
+
+    CONSTRAINT fk_task_team
+        FOREIGN KEY (team_id)
+        REFERENCES team_master(team_id),
+
+    CONSTRAINT fk_task_assigned_employee
+        FOREIGN KEY (assigned_to_employee_id)
+        REFERENCES employee_master(employee_id),
+
+    CONSTRAINT fk_task_created_employee
+        FOREIGN KEY (created_by_employee_id)
+        REFERENCES employee_master(employee_id)
+
+);
+
+
+CREATE TABLE sub_task_master (
+
+    sub_task_id INT AUTO_INCREMENT PRIMARY KEY,
+
+    sub_task_code VARCHAR(25) UNIQUE  NULL DEFAULT NULL,
+
+    parent_task_id INT NOT NULL,
+
+    sub_task_title VARCHAR(255) NOT NULL,
+    sub_task_description TEXT,
+
+    assigned_to_employee_id VARCHAR(20),
+    assigned_by_employee_id VARCHAR(20),
+
+    sub_task_priority ENUM(
+        'LOW',
+        'MEDIUM',
+        'HIGH'
+    ) DEFAULT 'MEDIUM',
+
+    sub_task_status ENUM(
+        'PENDING',
+        'DEVELOPMENT_DONE',
+        'TEST_DONE',
+        'COMPLETED'
+    ) DEFAULT 'PENDING',
+
+    sub_task_progress INT DEFAULT 0,
+
+    sub_task_deadline DATETIME,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+
+    CONSTRAINT fk_subtask_task
+        FOREIGN KEY (parent_task_id)
+        REFERENCES task_master(task_id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_subtask_assigned_to
+        FOREIGN KEY (assigned_to_employee_id)
+        REFERENCES employee_master(employee_id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
+
+    CONSTRAINT fk_subtask_assigned_by
+        FOREIGN KEY (assigned_by_employee_id)
+        REFERENCES employee_master(employee_id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL
+
+);
+
+
+CREATE TABLE query_master (
+
+    query_id INT AUTO_INCREMENT PRIMARY KEY,
+
+    project_id VARCHAR(20),
+    task_id INT,
+    sub_task_id INT,
+
+    raised_by_employee_id VARCHAR(20) NOT NULL,
+    assigned_to_employee_id VARCHAR(20),
+
+    query_title VARCHAR(255) NOT NULL,
+    query_description TEXT NOT NULL,
+
+    query_priority ENUM(
+        'LOW',
+        'MEDIUM',
+        'HIGH'
+    ) DEFAULT 'MEDIUM',
+
+    query_status ENUM(
+        'OPEN',
+        'IN_PROGRESS',
+        'RESOLVED',
+        'CLOSED'
+    ) DEFAULT 'OPEN',
+
+    query_resolution TEXT,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+
+    CONSTRAINT fk_query_project
+        FOREIGN KEY (project_id)
+        REFERENCES project_master(project_id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
+
+    CONSTRAINT fk_query_task
+        FOREIGN KEY (task_id)
+        REFERENCES task_master(task_id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
+
+    CONSTRAINT fk_query_subtask
+        FOREIGN KEY (sub_task_id)
+        REFERENCES sub_task_master(sub_task_id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
+
+    CONSTRAINT fk_query_raised_by
+        FOREIGN KEY (raised_by_employee_id)
+        REFERENCES employee_master(employee_id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_query_assigned_to
+        FOREIGN KEY (assigned_to_employee_id)
+        REFERENCES employee_master(employee_id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL
+
+);

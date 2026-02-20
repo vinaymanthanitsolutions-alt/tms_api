@@ -13,7 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
-
+//all done
 func Add(c *gin.Context) {
 	var data models.UserGet
 
@@ -32,15 +32,15 @@ func Add(c *gin.Context) {
 	}
 
 	query := `
-		INSERT INTO employee (
-			emp_id,
-			emp_name,
-			email,
-			phone,
-			emp_password,
-			department,
-			role,
-			manager_id
+		INSERT INTO employee_master (
+			employee_id,
+			employee_name,
+			employee_email,
+			employee_phone,
+			employee_password,
+			employee_department,
+			employee_role,
+			manager_employee_id
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
@@ -102,22 +102,22 @@ func ShowEmployees(c *gin.Context) {
 	filterArgs := []interface{}{}
 
 	if role != "SUPER_ADMIN" {
-		conditions = append(conditions, "e.manager_id = ?")
+		conditions = append(conditions, "e.manager_employee_id = ?")
 		filterArgs = append(filterArgs, managerID)
 	}
 
 	if status != "" && status != "ALL" {
-		conditions = append(conditions, "e.status = ?")
+		conditions = append(conditions, "e.employee_status = ?")
 		filterArgs = append(filterArgs, status)
 	}
 
 	if role != "" && role != "SUPER_ADMIN" {
-		conditions = append(conditions, "e.role = ?")
+		conditions = append(conditions, "e.employee_role = ?")
 		filterArgs = append(filterArgs, role)
 	}
 
 	if search != "" {
-		conditions = append(conditions, "(e.emp_id LIKE ? OR e.emp_name LIKE ?)")
+		conditions = append(conditions, "(e.employee_id LIKE ? OR e.employee_name LIKE ?)")
 		searchTerm := "%" + search + "%"
 		filterArgs = append(filterArgs, searchTerm, searchTerm)
 	}
@@ -127,7 +127,7 @@ func ShowEmployees(c *gin.Context) {
 		where = " WHERE " + strings.Join(conditions, " AND ")
 	}
 
-	countQuery := "SELECT COUNT(*) FROM employee e" + where
+	countQuery := "SELECT COUNT(*) FROM employee_master e" + where
 
 	var total int
 	err := config.DB.QueryRow(countQuery, filterArgs...).Scan(&total)
@@ -138,18 +138,18 @@ func ShowEmployees(c *gin.Context) {
 
 	query := `
 		SELECT 
-			e.emp_id,
-			e.emp_name,
-			e.email,
-			e.phone,
-			e.department,
-			e.role,
-			e.status,
-			e.manager_id,
-			m.emp_name AS manager_name
-		FROM employee e
-		LEFT JOIN employee m 
-			ON e.manager_id = m.emp_id
+			e.employee_id,
+			e.employee_name,
+			e.employee_email,
+			e.employee_phone,
+			e.employee_department,
+			e.employee_role,
+			e.employee_status,
+			e.manager_employee_id,
+			m.employee_name AS manager_name
+		FROM employee_master e
+		LEFT JOIN employee_master m 
+			ON e.manager_employee_id = m.employee_id
 	` + where + `
 		LIMIT ? OFFSET ?`
 
@@ -207,7 +207,7 @@ func DeleteUser(c *gin.Context) {
 		return
 	}
 
-	query := `UPDATE employee SET deleted_at = NOW(),status = 'SUSPENDED' WHERE emp_id=?`
+	query := `UPDATE employee_master SET deleted_at = NOW(), employee_status = 'SUSPENDED' WHERE employee_id=?`
 	result, err := config.DB.Exec(query, empId)
 	if err != nil {
 		utils.Failed(c, 501, "Database executing query error ")
@@ -233,10 +233,10 @@ func RestoreUser(c *gin.Context) {
 	}
 
 	query := `
-	UPDATE employee 
+	UPDATE employee_master 
 	SET deleted_at = NULL,
-	    status = 'ACTIVE'
-	WHERE emp_id = ?
+	    employee_status = 'ACTIVE'
+	WHERE employee_id = ?
 	  AND deleted_at IS NOT NULL
 	`
 
@@ -268,7 +268,7 @@ func UpdateProfile(c *gin.Context) {
 
 	var exists string
 	err := config.DB.QueryRow(
-		"SELECT emp_id FROM employee WHERE emp_id = ?",
+		"SELECT employee_id FROM employee_master WHERE employee_id = ?",
 		empID,
 	).Scan(&exists)
 
@@ -294,16 +294,16 @@ func UpdateProfile(c *gin.Context) {
 
 		// Update including password
 		_, err = config.DB.Exec(`
-			UPDATE employee SET
-				emp_name = ?,
-				email = ?,
-				phone = ?,
-				department = ?,
-				role = ?,
-				manager_id = ?,
-				emp_password = ?,
-				status =?
-			WHERE emp_id = ?
+			UPDATE employee_master SET
+				employee_name = ?,
+				employee_email = ?,
+				employee_phone = ?,
+				employee_department = ?,
+				employee_role = ?,
+				manager_employee_id = ?,
+				employee_password = ?,
+				employee_status = ?
+			WHERE employee_id = ?
 		`,
 			data.EmpName,
 			data.Email,
@@ -320,15 +320,15 @@ func UpdateProfile(c *gin.Context) {
 
 		// Update without password
 		_, err = config.DB.Exec(`
-			UPDATE employee SET
-				emp_name = ?,
-				email = ?,
-				phone = ?,
-				department = ?,
-				role = ?,
-				manager_id = ?,
-				status =?
-			WHERE emp_id = ?
+			UPDATE employee_master SET
+				employee_name = ?,
+				employee_email = ?,
+				employee_phone = ?,
+				employee_department = ?,
+				employee_role = ?,
+				manager_employee_id = ?,
+				employee_status = ?
+			WHERE employee_id = ?
 		`,
 			data.EmpName,
 			data.Email,
@@ -361,14 +361,14 @@ func GetEmployeesUnderSameManager(c *gin.Context) {
 
 	query := `
 		SELECT 
-			e.emp_id,
-			e.emp_name,
-			e.role
-		FROM employee e
-		WHERE e.manager_id = (
-			SELECT manager_id 
-			FROM employee 
-			WHERE emp_id = ?
+			e.employee_id,
+			e.employee_name,
+			e.employee_role
+		FROM employee_master e
+		WHERE e.manager_employee_id = (
+			SELECT manager_employee_id 
+			FROM employee_master 
+			WHERE employee_id = ?
 		)
 	`
 

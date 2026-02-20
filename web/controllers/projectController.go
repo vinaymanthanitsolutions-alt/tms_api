@@ -14,7 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
-
+//ALL checked
 func CreateProject(c *gin.Context) {
 	var p models.Project
 
@@ -38,8 +38,8 @@ func CreateProject(c *gin.Context) {
 	}
 
 	query := `
-	INSERT INTO project
-	(project_id, name, description, created_by, pm_id, deadline)
+	INSERT INTO project_master
+	(project_id, project_title, project_description, project_created_by, project_manager_id, project_deadline)
 	VALUES (?, ?, ?, ?, ?, ?)
 	`
 
@@ -72,8 +72,8 @@ func UpdateProject(c *gin.Context) {
 	}
 
 	query := `
-	UPDATE project
-	SET name=?, description=?, status=?, deadline=?
+	UPDATE project_master
+	SET project_title=?, project_description=?, project_status=?, project_deadline=?
 	WHERE project_id=?
 	`
 
@@ -98,7 +98,7 @@ func DeleteProject(c *gin.Context) {
 	id := c.Param("project_id")
 
 	_, err := config.DB.Exec(
-		"DELETE FROM project WHERE project_id=?",
+		"DELETE FROM project_master WHERE project_id=?",
 		id,
 	)
 
@@ -116,9 +116,9 @@ func GetProjectsByPM(c *gin.Context) {
 	log.Printf("PM ID = [%s]\n", pmID)
 
 	rows, err := config.DB.Query(`
-		SELECT project_id, name, status, deadline
-		FROM project
-		WHERE pm_id = ?
+		SELECT project_id, project_title, project_status, project_deadline
+		FROM project_master
+		WHERE project_manager_id = ?
 	`, pmID)
 
 	if err != nil {
@@ -175,25 +175,25 @@ func GetAllProjects(c *gin.Context) {
 	query := `
 		SELECT 
 			p.project_id,
-			p.name,
-			p.description,
-			p.created_by,
-			p.pm_id,
-			pm.emp_name AS pm_name,
-			pm.manager_id AS pm_manager_id,
-			pm_mgr.emp_name AS pm_manager_name,
-			p.status,
-			p.progress,
-			p.deadline
-		FROM project p
-		LEFT JOIN employee pm ON p.pm_id = pm.emp_id
-		LEFT JOIN employee pm_mgr ON pm.manager_id = pm_mgr.emp_id
+			p.project_title,
+			p.project_description,
+			p.project_created_by,
+			p.project_manager_id,
+			pm.employee_name AS pm_name,
+			pm.manager_employee_id AS pm_manager_id,
+			pm_mgr.employee_name AS pm_manager_name,
+			p.project_status,
+			p.project_progress,
+			p.project_deadline
+		FROM project_master p
+		LEFT JOIN employee_master pm ON p.project_manager_id = pm.employee_id
+		LEFT JOIN employee_master pm_mgr ON pm.manager_employee_id = pm_mgr.employee_id
 	`
 	args := []interface{}{}
 	where := ""
 
 	if search != "" {
-		where = `WHERE p.name LIKE ? OR p.description LIKE ? OR p.pm_id LIKE ?`
+		where = `WHERE p.project_title LIKE ? OR p.project_description LIKE ? OR p.project_manager_id LIKE ?`
 		searchPattern := "%" + search + "%"
 		args = append(args, searchPattern, searchPattern, searchPattern)
 	}
@@ -252,10 +252,10 @@ func GetAllProjects(c *gin.Context) {
 		projects = append(projects, project)
 	}
 
-	countQuery := "SELECT COUNT(*) FROM project p"
+	countQuery := "SELECT COUNT(*) FROM project_master p"
 	countArgs := []interface{}{}
 	if search != "" {
-		countQuery += " WHERE p.name LIKE ? OR p.description LIKE ? OR p.pm_id LIKE ?"
+		countQuery += " WHERE p.project_title LIKE ? OR p.project_description LIKE ? OR p.project_manager_id LIKE ?"
 		searchPattern := "%" + search + "%"
 		countArgs = append(countArgs, searchPattern, searchPattern, searchPattern)
 	}
@@ -277,6 +277,7 @@ func GetAllProjects(c *gin.Context) {
 	utils.Success(c, response)
 }
 
+
 func AssignProjectManager(c *gin.Context) {
     projectID := c.Param("project_id")
     var data struct {
@@ -289,7 +290,7 @@ func AssignProjectManager(c *gin.Context) {
 
     var currentPM sql.NullString
     err := config.DB.QueryRow(
-        "SELECT pm_id FROM project WHERE project_id = ?",
+        "SELECT project_manager_id FROM project_master WHERE project_id = ?",
         projectID,
     ).Scan(&currentPM)
     if err != nil {
@@ -307,12 +308,12 @@ func AssignProjectManager(c *gin.Context) {
     }
 
     _, err = config.DB.Exec(
-        "UPDATE project SET pm_id=? WHERE project_id=?",
+        "UPDATE project_master SET project_manager_id=? WHERE project_id=?",
         data.PMID,
         projectID,
     )
     if err != nil {
-		log.Println("Assigning Problem : ",err)
+        log.Println("Assigning Problem : ", err)
         utils.Failed(c, http.StatusInternalServerError, "Assignment failed")
         return
     }
@@ -339,30 +340,31 @@ func GetProjectsByAdmin(c *gin.Context) {
 	search := strings.TrimSpace(c.DefaultQuery("search", ""))
 
 	query := `
-		SELECT 
-			p.project_id,
-			p.name,
-			p.description,
-			p.pm_id,
-			p.status,
-			p.deadline,
-			p.progress,
-			e.emp_name AS admin_name
-		FROM project p
-		LEFT JOIN employee e ON p.created_by = e.emp_id
-		WHERE p.created_by = ?
-	`
+    SELECT 
+        p.project_id,
+        p.project_title,
+        p.project_description,
+        p.project_manager_id,
+        p.project_status,
+        p.project_deadline,
+        p.project_progress,
+        e.employee_name AS admin_name
+    FROM project_master p
+    LEFT JOIN employee_master e ON p.project_created_by = e.employee_id
+    WHERE p.project_created_by = ?
+`
+
 	args := []interface{}{adminID}
 
 	if search != "" {
 		query += `
 		 AND (
-			p.name LIKE ? 
-			OR p.description LIKE ? 
-			OR p.pm_id = ?
+			p.project_title LIKE ? 
+			OR p.project_description LIKE ? 
+			OR p.project_manager_id LIKE ?
 		 )`
 		searchPattern := "%" + search + "%"
-		args = append(args, searchPattern, searchPattern, search)
+		args = append(args, searchPattern, searchPattern, searchPattern)
 	}
 
 	query += " LIMIT ? OFFSET ?"
@@ -381,7 +383,7 @@ func GetProjectsByAdmin(c *gin.Context) {
 		var deadline sql.NullTime
 		var progress int
 
-		if err := rows.Scan(&projectID, &name, &description, &pmID, &status, &deadline,&progress, &adminName); err != nil {
+		if err := rows.Scan(&projectID, &name, &description, &pmID, &status, &deadline, &progress, &adminName); err != nil {
 			utils.Failed(c, http.StatusInternalServerError, "Scan error")
 			return
 		}
@@ -406,7 +408,11 @@ func GetProjectsByAdmin(c *gin.Context) {
 	}
 
 	var total int
-	err = config.DB.QueryRow("SELECT COUNT(*) FROM project WHERE created_by=?", adminID).Scan(&total)
+	err = config.DB.QueryRow(
+		"SELECT COUNT(*) FROM project_master WHERE project_created_by=?",
+		adminID,
+	).Scan(&total)
+
 	if err != nil {
 		utils.Failed(c, http.StatusInternalServerError, "Count failed")
 		return
@@ -437,21 +443,23 @@ func GetProjectTeamDetails(c *gin.Context) {
 
 	countQuery := `
 		SELECT COUNT(*)
-		FROM project p
-		LEFT JOIN team t ON t.project_id = p.project_id
-		LEFT JOIN employee e_tl ON e_tl.emp_id = t.team_leader_id
-		LEFT JOIN team_members tm ON tm.team_id = t.team_id
-		LEFT JOIN employee e ON e.emp_id = tm.employee_id
+		FROM project_master p
+		LEFT JOIN team_master t ON t.project_id = p.project_id
+		LEFT JOIN employee_master e_tl ON e_tl.employee_id = t.team_leader_employee_id
+		LEFT JOIN team_member_mapping tm ON tm.team_id = t.team_id
+		LEFT JOIN employee_master e ON e.employee_id = tm.employee_id
 		WHERE
 			(? = '' OR 
 			 p.project_id LIKE ? OR
-			 p.name LIKE ? OR
-			 e.emp_name LIKE ? OR
-			 e_tl.emp_name LIKE ?
+			 p.project_title LIKE ? OR
+			 e.employee_name LIKE ? OR
+			 e_tl.employee_name LIKE ?
 			)
 	`
+
 	var total int
 	if err := config.DB.QueryRow(countQuery, search, searchLike, searchLike, searchLike, searchLike).Scan(&total); err != nil {
+		log.Println(err)
 		utils.Failed(c, 500, "Failed to count project details")
 		return
 	}
@@ -459,27 +467,27 @@ func GetProjectTeamDetails(c *gin.Context) {
 	query := `
 		SELECT 
 			p.project_id,
-			p.name AS project_name,
+			p.project_title AS project_name,
 			t.team_id,
-			e_tl.emp_name AS team_leader,
-			e_tl.email AS team_leader_email,
-			e.emp_name AS employee_name,
-			e.email AS employee_email,
-			e.role,
-			e.department
-		FROM project p
-		LEFT JOIN team t ON t.project_id = p.project_id
-		LEFT JOIN employee e_tl ON e_tl.emp_id = t.team_leader_id
-		LEFT JOIN team_members tm ON tm.team_id = t.team_id
-		LEFT JOIN employee e ON e.emp_id = tm.employee_id
+			e_tl.employee_name AS team_leader,
+			e_tl.employee_email AS team_leader_email,
+			e.employee_name AS employee_name,
+			e.employee_email AS employee_email,
+			e.employee_role,
+			e.employee_department
+		FROM project_master p
+		LEFT JOIN team_master t ON t.project_id = p.project_id
+		LEFT JOIN employee_master e_tl ON e_tl.employee_id = t.team_leader_employee_id
+		LEFT JOIN team_member_mapping tm ON tm.team_id = t.team_id
+		LEFT JOIN employee_master e ON e.employee_id = tm.employee_id
 		WHERE
 			(? = '' OR 
 			 p.project_id LIKE ? OR
-			 p.name LIKE ? OR
-			 e.emp_name LIKE ? OR
-			 e_tl.emp_name LIKE ?
+			 p.project_title LIKE ? OR
+			 e.employee_name LIKE ? OR
+			 e_tl.employee_name LIKE ?
 			)
-		ORDER BY p.project_id, t.team_id, e.role
+		ORDER BY p.project_id, t.team_id, e.employee_role
 		LIMIT ? OFFSET ?
 	`
 
@@ -489,6 +497,7 @@ func GetProjectTeamDetails(c *gin.Context) {
 		limit, offset,
 	)
 	if err != nil {
+		log.Println(err)
 		utils.Failed(c, 500, "Failed to fetch project details")
 		return
 	}
@@ -546,18 +555,19 @@ func GetProjectsGroupedByManager(c *gin.Context) {
 		return
 	}
 	log.Println(managerID)
+
 	query := `
 		SELECT
 			p.project_id,
-			p.name,
-			p.status,
-			p.deadline,
-			e.emp_id,
-			e.emp_name
-		FROM project p
-		JOIN team t ON p.project_id = t.project_id
-		JOIN employee e ON t.team_leader_id = e.emp_id
-		WHERE p.pm_id = ?
+			p.project_title,
+			p.project_status,
+			p.project_deadline,
+			e.employee_id,
+			e.employee_name
+		FROM project_master p
+		JOIN team_master t ON p.project_id = t.project_id
+		JOIN employee_master e ON t.team_leader_employee_id = e.employee_id
+		WHERE p.project_manager_id = ?
 	`
 
 	rows, err := config.DB.Query(query, managerID)
@@ -590,7 +600,9 @@ func GetProjectsGroupedByManager(c *gin.Context) {
 			utils.Failed(c, http.StatusInternalServerError, err.Error())
 			return
 		}
+
 		log.Println("project id", projectID)
+
 		// IF PROJECT NOT EXISTS , CREATE IT
 		if _, exists := projectMap[projectID]; !exists {
 			projectMap[projectID] = &models.ProjectWithTL{

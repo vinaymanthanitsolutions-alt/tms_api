@@ -1,36 +1,31 @@
-package controllers 
+package controllers
 
 import (
 	"backend/internal/config"
 	"backend/internal/services"
 	"backend/internal/utils"
 	"backend/web/models"
+	"fmt"
 	"log"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
-
+//all check
 func CreateSubTask(c *gin.Context) {
 	var input models.SubTask
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		log.Println("CreateSubTask bind error:", err)
 		utils.Failed(c, 400, "Invalid input")
 		return
 	}
-
-	if input.Title == "" {
-		utils.Failed(c, 400, "title are required")
-		return
-	}
-
-	_, err := config.DB.Exec(`
-		INSERT INTO sub_tasks 
-		(title,task_id, description, assigned_to, assigned_by, priority)
-		VALUES (?, ?, ?, ?, ?, ?)`,
-		input.Title,
+	result, err := config.DB.Exec(`
+		INSERT INTO sub_task_master
+		(parent_task_id, sub_task_title, sub_task_description, assigned_to_employee_id, assigned_by_employee_id, sub_task_priority)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`,
 		input.TaskID,
+		input.Title,
 		input.Description,
 		input.AssignedTo,
 		input.AssignedBy,
@@ -38,12 +33,30 @@ func CreateSubTask(c *gin.Context) {
 	)
 
 	if err != nil {
-		log.Println("CreateSubTask DB error:", err)
-		utils.Failed(c, 500, "Database error")
+		utils.Failed(c, 500, err.Error())
 		return
 	}
 
-	utils.Success(c, "SubTask created successfully")
+	lastID, err := result.LastInsertId()
+	if err != nil {
+		utils.Failed(c, 500, err.Error())
+		return
+	}
+
+	subTaskCode := fmt.Sprintf("ST%d%d", input.TaskID, lastID)
+
+	_, err = config.DB.Exec(`
+		UPDATE sub_task_master
+		SET sub_task_code = ?
+		WHERE sub_task_id = ?
+	`, subTaskCode, lastID)
+
+	if err != nil {
+		utils.Failed(c, 500, err.Error())
+		return
+	}
+
+	utils.Success(c, "Sub task created successfully")
 }
 
 func UpdateSubTaskStatus(c *gin.Context) {
@@ -65,12 +78,13 @@ func UpdateSubTaskStatus(c *gin.Context) {
 		return
 	}
 
-	_ , err = config.DB.Exec(
-		`UPDATE sub_tasks SET status = ? WHERE id = ? AND deleted_at IS NULL`,
+	_, err = config.DB.Exec(
+		`UPDATE sub_task_master 
+	 SET sub_task_status = ? 
+	 WHERE sub_task_id = ? AND deleted_at IS NULL`,
 		input.Status,
 		subTaskID,
 	)
-
 	if err != nil {
 		log.Println("UpdateSubTaskStatus DB error:", err)
 		utils.Failed(c, 500, "Database error")
@@ -103,7 +117,9 @@ func DeleteSubTask(c *gin.Context) {
 	}
 
 	res, err := config.DB.Exec(
-		`UPDATE sub_tasks SET deleted_at = NOW() WHERE id = ? AND deleted_at IS NULL`,
+		`UPDATE sub_task_master 
+	 SET deleted_at = NOW() 
+	 WHERE sub_task_id = ? AND deleted_at IS NULL`,
 		subTaskID,
 	)
 
@@ -138,11 +154,19 @@ func GetSubTasksByTask(c *gin.Context) {
 	}
 
 	rows, err := config.DB.Query(`
-		SELECT id, task_id, title, description, status, 
-		       assigned_to, assigned_by, priority, 
-		       created_at, updated_at
-		FROM sub_tasks
-		WHERE task_id = ? AND deleted_at IS NULL`,
+	SELECT 
+		sub_task_id,
+		parent_task_id,
+		sub_task_title,
+		sub_task_description,
+		sub_task_status,
+		assigned_to_employee_id,
+		assigned_by_employee_id,
+		sub_task_priority,
+		created_at,
+		updated_at
+	FROM sub_task_master
+	WHERE parent_task_id = ? AND deleted_at IS NULL`,
 		taskID,
 	)
 

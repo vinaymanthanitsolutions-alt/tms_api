@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
-
+//ALL CHECKED
 func TeamRouter(r *gin.Engine) {
 	r.POST("/teams", controllers.CreateTeam) // will used by vansh
 	r.GET("/teams/:id", controllers.GetTeamByID)

@@ -11,7 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
-
+//ALL CHECK
 func CreateQuery(c *gin.Context) {
 	var q models.Query
 
@@ -21,10 +21,10 @@ func CreateQuery(c *gin.Context) {
 	}
 
 	query := `
-	INSERT INTO queries
-	(project_id, task_id, raised_by, assigned_to,
-	 title, description, priority, status)
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO query_master
+		(project_id, task_id, raised_by_employee_id, assigned_to_employee_id,
+		query_title, query_description, query_priority, query_status)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	_, err := config.DB.Exec(
@@ -50,10 +50,20 @@ func CreateQuery(c *gin.Context) {
 
 func GetAllQueries(c *gin.Context) {
 	rows, err := config.DB.Query(`
-		SELECT id, project_id, task_id, raised_by,
-		       assigned_to, title, description,
-		       priority, status, created_at, updated_at
-		FROM queries
+	SELECT 
+		query_id,
+		project_id,
+		task_id,
+		raised_by_employee_id,
+		assigned_to_employee_id,
+		query_title,
+		query_description,
+		query_priority,
+		query_status,
+		created_at,
+		updated_at
+	FROM query_master
+	WHERE deleted_at IS NULL
 	`)
 	if err != nil {
 		utils.Failed(c, 500, "Failed to fetch queries")
@@ -111,9 +121,13 @@ func GetQueriesByProject(c *gin.Context) {
 	projectID := c.Param("project_id")
 
 	rows, err := config.DB.Query(`
-		SELECT id, title, status, priority
-		FROM queries
-		WHERE project_id = ?
+	SELECT 
+		query_id,
+		query_title,
+		query_status,
+		query_priority
+	FROM query_master
+	WHERE project_id = ? AND deleted_at IS NULL
 	`, projectID)
 
 	if err != nil {
@@ -158,10 +172,10 @@ func UpdateQuery(c *gin.Context) {
 	}
 
 	_, err := config.DB.Exec(`
-		UPDATE queries
-		SET status = COALESCE(?, status),
-		    assigned_to = COALESCE(?, assigned_to)
-		WHERE id = ?
+	UPDATE query_master
+	SET query_status = COALESCE(?, query_status),
+	    assigned_to_employee_id = COALESCE(?, assigned_to_employee_id)
+	WHERE query_id = ? AND deleted_at IS NULL
 	`, payload.Status, payload.AssignedTo, id)
 
 	if err != nil {

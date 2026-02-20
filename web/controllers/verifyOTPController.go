@@ -10,7 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
-
+//all done
 func VerifyOtp(c *gin.Context) {
 	var req struct {
 		EmpID string `json:"empID"`
@@ -29,9 +29,9 @@ func VerifyOtp(c *gin.Context) {
 	var email string
 
 	err := config.DB.QueryRow(`
-		SELECT otp, expire_at, role, email
-		FROM employee
-		WHERE emp_id = ?
+		SELECT employee_otp, otp_expire_at, employee_role, employee_email
+		FROM employee_master
+		WHERE employee_id = ? AND deleted_at IS NULL
 	`, req.EmpID).Scan(&dbOTP, &expiry, &role, &email)
 
 	if err != nil {
@@ -57,9 +57,9 @@ func VerifyOtp(c *gin.Context) {
 	}
 
 	_, err = config.DB.Exec(`
-		UPDATE employee
-		SET otp = NULL, expire_at = NULL
-		WHERE emp_id = ?
+		UPDATE employee_master
+		SET employee_otp = NULL, otp_expire_at = NULL
+		WHERE employee_id = ?
 	`, req.EmpID)
 
 	if err != nil {

@@ -11,7 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
-
+//ALL CHECKED
 func LoginUser(c *gin.Context) {
 	var input struct {
 		EmpId    string `json:"empID"`
@@ -33,9 +33,9 @@ func LoginUser(c *gin.Context) {
 	var empId string
 
 	err := config.DB.QueryRow(
-		`SELECT emp_id, emp_password 
-		 FROM employee 
-		 WHERE emp_id = ? AND deleted_at IS NULL`,
+		`SELECT employee_id, employee_password 
+	 FROM employee_master 
+	 WHERE employee_id = ? AND deleted_at IS NULL`,
 		input.EmpId,
 	).Scan(&empId, &storedPassword)
 
@@ -70,7 +70,9 @@ func LoginUser(c *gin.Context) {
 	otpExpiry := time.Now().Add(5 * time.Minute)
 
 	result, err := config.DB.Exec(
-		`UPDATE employee SET otp = ?, expire_at = ? WHERE emp_id = ?`,
+		`UPDATE employee_master 
+	 SET employee_otp = ?, otp_expire_at = ? 
+	 WHERE employee_id = ?`,
 		otp,
 		otpExpiry,
 		empId,
@@ -95,10 +97,9 @@ func LoginUser(c *gin.Context) {
 		"empID":   empId,
 		"message": "OTP sent to your registered email",
 		"success": true,
-	})	
+	})
 
 }
-
 
 func ForgetPassword(c *gin.Context) {
 	var input struct {
@@ -126,7 +127,9 @@ func ForgetPassword(c *gin.Context) {
 	otpExpiry := time.Now().Add(5 * time.Minute)
 
 	result, err := config.DB.Exec(
-		`UPDATE employee SET otp = ?, expire_at = ? WHERE email = ? AND deleted_at IS NULL`,
+		`UPDATE employee_master 
+	 SET employee_otp = ?, otp_expire_at = ? 
+	 WHERE employee_email = ? AND deleted_at IS NULL`,
 		otp,
 		otpExpiry,
 		input.Email,
@@ -153,7 +156,9 @@ func ForgetPassword(c *gin.Context) {
 
 	var empId string
 	err = config.DB.QueryRow(
-		`SELECT emp_id FROM employee WHERE email = ? AND deleted_at IS NULL`,
+		`SELECT employee_id 
+	 FROM employee_master 
+	 WHERE employee_email = ? AND deleted_at IS NULL`,
 		input.Email,
 	).Scan(&empId)
 
@@ -200,7 +205,9 @@ func UpdatePassword(c *gin.Context) {
 	var expiry time.Time
 
 	err := config.DB.QueryRow(
-		`SELECT otp, expire_at FROM employee WHERE email = ? AND deleted_at IS NULL`,
+		`SELECT employee_otp, otp_expire_at 
+	 FROM employee_master 
+	 WHERE employee_email = ? AND deleted_at IS NULL`,
 		input.Email,
 	).Scan(&dbOTP, &expiry)
 
@@ -239,9 +246,11 @@ func UpdatePassword(c *gin.Context) {
 	}
 
 	result, err := config.DB.Exec(
-		`UPDATE employee 
-		 SET emp_password = ?, otp = NULL, expire_at = NULL 
-		 WHERE email = ? AND deleted_at IS NULL`,
+		`UPDATE employee_master 
+	 SET employee_password = ?, 
+	     employee_otp = NULL, 
+	     otp_expire_at = NULL
+	 WHERE employee_email = ? AND deleted_at IS NULL`,
 		string(hashedPassword),
 		input.Email,
 	)

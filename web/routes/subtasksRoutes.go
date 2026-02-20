@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
-
+//All check
 func SubTasksRoutes(r *gin.Engine) {
 	r.POST("/subtasks", controllers.CreateSubTask)
 	r.PUT("/subtasks/:id/status", controllers.UpdateSubTaskStatus)

@@ -27,6 +27,7 @@ func main() {
 	if err := config.InitDB(); err != nil {
 		log.Fatal("MySQL Connection Error:", err)
 	}
+
 	defer config.CloseDB()
 
 	gin.SetMode(ginMode)

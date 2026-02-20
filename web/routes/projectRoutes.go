@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
-
+//all checked
 func ProjectRoutes(r *gin.Engine) {
 	project := r.Group("/project")
 

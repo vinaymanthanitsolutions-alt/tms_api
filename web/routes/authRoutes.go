@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
-// by all
+// All working as new db
 func Routes(server *gin.Engine) {
 	server.POST("/signup",controllers.Add) //by sarthak and divya
 	server.POST("/login",controllers.LoginUser)   

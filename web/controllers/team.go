@@ -11,7 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
-
+//ALL CHECKED
 func CreateTeam(c *gin.Context) {
 
 	var input models.CreateTeamRequest
@@ -24,7 +24,7 @@ func CreateTeam(c *gin.Context) {
 
 	var exists string
 	err := config.DB.QueryRow(
-		`SELECT project_id FROM project WHERE project_id = ?`,
+		`SELECT project_id FROM project_master WHERE project_id = ?`,
 		input.ProjectID,
 	).Scan(&exists)
 
@@ -40,7 +40,7 @@ func CreateTeam(c *gin.Context) {
 	}
 
 	_, err = config.DB.Exec(`
-		INSERT INTO team (team_id, project_id, team_leader_id)
+		INSERT INTO team_master (team_id, project_id, team_leader_employee_id)
 		VALUES (?, ?, ?)`,
 		input.TeamID, input.ProjectID, input.TeamLeaderID)
 
@@ -70,8 +70,8 @@ func GetTeamByID(c *gin.Context) {
 	var team models.Team
 
 	err := config.DB.QueryRow(`
-		SELECT team_id, project_id, team_leader_id, created_at
-		FROM team WHERE team_id = ?`, id).
+		SELECT team_id, project_id, team_leader_employee_id, created_at
+		FROM team_master WHERE team_id = ?`, id).
 		Scan(&team.TeamID, &team.ProjectID, &team.TeamLeaderID, &team.CreatedAt)
 
 	if err != nil {
@@ -98,8 +98,8 @@ func GetTeamsByProject(c *gin.Context) {
 	}
 
 	rows, err := config.DB.Query(`
-		SELECT team_id, project_id, team_leader_id, created_at
-		FROM team WHERE project_id = ?`, projectID)
+		SELECT team_id, project_id, team_leader_employee_id, created_at
+		FROM team_master WHERE project_id = ?`, projectID)
 
 	if err != nil {
 		log.Println("GetTeamsByProject: query error:", err)
@@ -146,7 +146,7 @@ func UpdateTeamLeader(c *gin.Context) {
 	}
 
 	result, err := config.DB.Exec(`
-		UPDATE team SET team_leader_id = ?
+		UPDATE team_master SET team_leader_employee_id = ?
 		WHERE team_id = ?`,
 		input.TeamLeaderID, id)
 
@@ -156,19 +156,14 @@ func UpdateTeamLeader(c *gin.Context) {
 		return
 	}
 
-	rowsAffected, err := result.RowsAffected()
+	_, err = result.RowsAffected()
 	if err != nil {
 		log.Println("UpdateTeamLeader: rowsAffected error:", err)
 		utils.Failed(c, http.StatusInternalServerError, "Failed to verify update result")
 		return
 	}
 
-	if rowsAffected == 0 {
-		log.Println("UpdateTeamLeader: team not found:", id)
-		utils.Failed(c, http.StatusNotFound, "Team not found")
-		return
-	}
-
+	
 	utils.Success(c, gin.H{"message": "Team leader updated successfully"})
 }
 
@@ -181,7 +176,7 @@ func DeleteTeam(c *gin.Context) {
 		return
 	}
 
-	result, err := config.DB.Exec("DELETE FROM team WHERE team_id = ?", id)
+	result, err := config.DB.Exec("DELETE FROM team_master WHERE team_id = ?", id)
 	if err != nil {
 		log.Println("DeleteTeam: delete failed:", err)
 		utils.Failed(c, http.StatusInternalServerError, "Failed to delete team")
@@ -222,7 +217,7 @@ func AddTeamMember(c *gin.Context) {
 	}
 
 	_, err := config.DB.Exec(`
-		INSERT INTO team_members (team_id, employee_id)
+		INSERT INTO team_member_mapping (team_id, employee_id)
 		VALUES (?, ?)`,
 		teamID, input.EmployeeID)
 
@@ -252,7 +247,7 @@ func RemoveTeamMember(c *gin.Context) {
 	}
 
 	result, err := config.DB.Exec(`
-		DELETE FROM team_members
+		DELETE FROM team_member_mapping
 		WHERE team_id = ? AND employee_id = ?`,
 		teamID, empID)
 
@@ -288,9 +283,9 @@ func GetTeamMembers(c *gin.Context) {
 	}
 
 	rows, err := config.DB.Query(`
-		SELECT e.emp_id, e.emp_name, e.email
-		FROM team_members tm
-		JOIN employee e ON tm.employee_id = e.emp_id
+		SELECT e.employee_id, e.employee_name, e.employee_email
+		FROM team_member_mapping tm
+		JOIN employee_master e ON tm.employee_id = e.employee_id
 		WHERE tm.team_id = ?`, teamID)
 
 	if err != nil {

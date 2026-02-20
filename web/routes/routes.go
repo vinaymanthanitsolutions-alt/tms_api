@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
-
+//all working
 func Router(server *gin.Engine) {
 	server.GET("/emp", controllers.ShowEmployees) // used vansh, by sarthak,managerID ,managerName Added for divya(for users).
 	server.GET("empAllUnderSameManager",controllers.GetEmployeesUnderSameManager) 

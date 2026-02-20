@@ -3,11 +3,12 @@ package controllers
 import (
 	"backend/internal/config"
 	"backend/internal/utils"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
-
+//all checked
 func GetEmployeeCounts(c *gin.Context) {
 
 	managerID := c.Query("manager_id")
@@ -21,11 +22,11 @@ func GetEmployeeCounts(c *gin.Context) {
 		query := `
 			SELECT
 				COUNT(*) AS total,
-				COALESCE(SUM(status = 'ACTIVE'), 0) AS active,
-				COALESCE(SUM(status = 'INACTIVE'), 0) AS inactive,
-				COALESCE(SUM(status = 'SUSPENDED'), 0) AS suspended
-			FROM employee
-			WHERE manager_id = ?
+				COALESCE(SUM(employee_status = 'ACTIVE'), 0) AS active,
+				COALESCE(SUM(employee_status = 'INACTIVE'), 0) AS inactive,
+				COALESCE(SUM(employee_status = 'SUSPENDED'), 0) AS suspended
+			FROM employee_master
+			WHERE manager_employee_id = ?
 		`
 
 		err = config.DB.QueryRow(query, managerID).
@@ -35,10 +36,10 @@ func GetEmployeeCounts(c *gin.Context) {
 		query := `
 			SELECT
 				COUNT(*) AS total,
-				COALESCE(SUM(status = 'ACTIVE'), 0) AS active,
-				COALESCE(SUM(status = 'INACTIVE'), 0) AS inactive,
-				COALESCE(SUM(status = 'SUSPENDED'), 0) AS suspended
-			FROM employee
+				COALESCE(SUM(employee_status = 'ACTIVE'), 0) AS active,
+				COALESCE(SUM(employee_status = 'INACTIVE'), 0) AS inactive,
+				COALESCE(SUM(employee_status = 'SUSPENDED'), 0) AS suspended
+			FROM employee_master
 		`
 
 		err = config.DB.QueryRow(query).
@@ -46,6 +47,7 @@ func GetEmployeeCounts(c *gin.Context) {
 	}
 
 	if err != nil {
+		log.Println(err)
 		utils.Failed(c, http.StatusInternalServerError, "Count fetch failed")
 		return
 	}
@@ -77,11 +79,11 @@ func GetProjectCounts(c *gin.Context) {
 		query := `
 			SELECT
 				COUNT(*) AS total,
-				COALESCE(SUM(status = 'PLANNING'), 0) AS planning,
-				COALESCE(SUM(status = 'ACTIVE'), 0) AS active,
-				COALESCE(SUM(status = 'COMPLETED'), 0) AS completed
-			FROM project
-			WHERE pm_id = ?
+				COALESCE(SUM(project_status = 'PLANNING'), 0) AS planning,
+				COALESCE(SUM(project_status = 'ACTIVE'), 0) AS active,
+				COALESCE(SUM(project_status = 'COMPLETED'), 0) AS completed
+			FROM project_master
+			WHERE project_manager_id = ?
 		`
 
 		err = config.DB.QueryRow(query, pmID).
@@ -92,11 +94,11 @@ func GetProjectCounts(c *gin.Context) {
 		query := `
 			SELECT
 				COUNT(*) AS total,
-				COALESCE(SUM(status = 'PLANNING'), 0) AS planning,
-				COALESCE(SUM(status = 'ACTIVE'), 0) AS active,
-				COALESCE(SUM(status = 'COMPLETED'), 0) AS completed
-			FROM project
-			WHERE created_by = ?
+				COALESCE(SUM(project_status = 'PLANNING'), 0) AS planning,
+				COALESCE(SUM(project_status = 'ACTIVE'), 0) AS active,
+				COALESCE(SUM(project_status = 'COMPLETED'), 0) AS completed
+			FROM project_master
+			WHERE project_created_by = ?
 		`
 
 		err = config.DB.QueryRow(query, adminID).
@@ -104,6 +106,7 @@ func GetProjectCounts(c *gin.Context) {
 	}
 
 	if err != nil {
+		log.Println(err)
 		utils.Failed(c, http.StatusInternalServerError, "Failed to fetch project counts")
 		return
 	}
@@ -132,7 +135,7 @@ func GetTeamCounts(c *gin.Context) {
 	case projectID != "":
 		query := `
 			SELECT COUNT(*)
-			FROM team
+			FROM team_master
 			WHERE project_id = ?
 		`
 		err = config.DB.QueryRow(query, projectID).Scan(&total)
@@ -140,26 +143,26 @@ func GetTeamCounts(c *gin.Context) {
 	case teamLeaderID != "":
 		query := `
 			SELECT COUNT(*)
-			FROM team
-			WHERE team_leader_id = ?
+			FROM team_master
+			WHERE team_leader_employee_id = ?
 		`
 		err = config.DB.QueryRow(query, teamLeaderID).Scan(&total)
 
 	case pmID != "":
 		query := `
 			SELECT COUNT(*)
-			FROM team t
-			JOIN project p ON t.project_id = p.project_id
-			WHERE p.pm_id = ?
+			FROM team_master t
+			JOIN project_master p ON t.project_id = p.project_id
+			WHERE p.project_manager_id = ?
 		`
 		err = config.DB.QueryRow(query, pmID).Scan(&total)
 
 	case adminID != "":
 		query := `
 			SELECT COUNT(*)
-			FROM team t
-			JOIN project p ON t.project_id = p.project_id
-			WHERE p.created_by = ?
+			FROM team_master t
+			JOIN project_master p ON t.project_id = p.project_id
+			WHERE p.project_created_by = ?
 		`
 		err = config.DB.QueryRow(query, adminID).Scan(&total)
 
@@ -171,6 +174,7 @@ func GetTeamCounts(c *gin.Context) {
 
 	if err != nil {
 		utils.Failed(c, http.StatusInternalServerError, "Failed to fetch team count")
+		log.Println(err)
 		return
 	}
 

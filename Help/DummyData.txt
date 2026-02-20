@@ -1,0 +1,300 @@
+INSERT INTO employee_master (
+    employee_id,
+    employee_name,
+    employee_email,
+    employee_phone,
+    employee_password,
+    employee_department,
+    employee_role
+) VALUES (
+    'SA001',
+    'Vaibhav Chauhan',
+    'vaibhav@example.com',
+    '9000000001',
+    'hashed_password',
+    'HEAD',
+    'SUPER_ADMIN'
+);
+
+INSERT INTO employee_master (
+    employee_id,
+    employee_name,
+    employee_email,
+    employee_phone,
+    employee_password,
+    employee_department,
+    employee_role,
+    manager_employee_id
+) VALUES (
+    'A001',
+    'Ayush Singh',
+    'ayush@example.com',
+    '9000000002',
+    'hashed_password',
+    'HEAD',
+    'ADMIN',
+    'SA001'
+);
+
+INSERT INTO employee_master (
+    employee_id,
+    employee_name,
+    employee_email,
+    employee_phone,
+    employee_password,
+    employee_department,
+    employee_role,
+    manager_employee_id
+) VALUES (
+    'PM001',
+    'Sarthak',
+    'sarthak@example.com',
+    '9000000003',
+    'hashed_password',
+    'IT',
+    'PROJECT_MANAGER',
+    'A001'
+);
+
+INSERT INTO employee_master (
+    employee_id,
+    employee_name,
+    employee_email,
+    employee_phone,
+    employee_password,
+    employee_department,
+    employee_role,
+    manager_employee_id
+) VALUES (
+    'TL001',
+    'Divya',
+    'divya@example.com',
+    '9000000004',
+    'hashed_password',
+    'IT',
+    'TEAM_LEADER',
+    'A001'
+);
+
+INSERT INTO employee_master VALUES
+(NULL,'DV001','Prince','prince@example.com','9000000005','hashed_password','IT','DEVELOPER','ACTIVE','A001',NULL,NULL,NULL,NOW(),NOW(),NULL),
+(NULL,'TS001','Arush','arush@example.com','9000000006','hashed_password','IT','TESTER','ACTIVE','A001',NULL,NULL,NULL,NOW(),NOW(),NULL);
+
+INSERT INTO project_master (
+    project_id,
+    project_title,
+    project_description,
+    project_created_by,
+    project_manager_id,
+    project_status,
+    project_deadline
+) VALUES (
+    'PR001',
+    'Task Management System',
+    'Full task management application',
+    'A001',
+    'PM001',
+    'ACTIVE',
+    '2026-03-30'
+);
+
+INSERT INTO team_master (
+    team_id,
+    project_id,
+    team_leader_employee_id
+) VALUES (
+    'TM001',
+    'PR001',
+    'TL001'
+);
+
+INSERT INTO team_member_mapping (
+    team_id,
+    employee_id
+) VALUES
+('TM001', 'DV001'),
+('TM001', 'TS001');
+
+INSERT INTO task_master (
+    project_id,
+    team_id,
+    task_title,
+    task_description,
+    assigned_to_employee_id,
+    created_by_employee_id,
+    task_status,
+    task_progress,
+    task_deadline
+) VALUES (
+    'PR001',
+    'TM001',
+    'Homepage Development',
+    'Create homepage UI and backend',
+    'DV001',
+    'PM001',
+    'IN_PROGRESS',
+    40,
+    '2026-03-10'
+);
+
+INSERT INTO sub_task_master (
+    sub_task_code,
+    parent_task_id,
+    sub_task_title,
+    sub_task_description,
+    assigned_to_employee_id,
+    assigned_by_employee_id,
+    sub_task_priority,
+    sub_task_status,
+    sub_task_progress,
+    sub_task_deadline
+) VALUES (
+    'ST001',
+    1,
+    'Create Navbar',
+    'Develop responsive navigation bar',
+    'DV001',
+    'TL001',
+    'HIGH',
+    'DEVELOPMENT_DONE',
+    70,
+    '2026-03-05'
+);
+
+INSERT INTO query_master (
+    project_id,
+    task_id,
+    sub_task_id,
+    raised_by_employee_id,
+    assigned_to_employee_id,
+    query_title,
+    query_description,
+    query_priority,
+    query_status
+) VALUES (
+    'PR001',
+    1,
+    1,
+    'DV001',
+    'TL001',
+    'Navbar alignment issue',
+    'Navbar not aligned properly on mobile',
+    'HIGH',
+    'OPEN'
+);
+
+INSERT INTO employee_master (
+employee_id, employee_name, employee_email, employee_phone,
+employee_password, employee_department, employee_role, manager_employee_id
+) VALUES
+
+('PM002','Aditya Rao','aditya@example.com','9000000101','pass','IT','PROJECT_MANAGER','A001'),
+('PM003','Neha Sharma','neha@example.com','9000000102','pass','IT','PROJECT_MANAGER','A001');
+
+INSERT INTO employee_master VALUES
+
+(NULL,'TL002','Meera Joshi','meera@example.com','9000000201','pass','IT','TEAM_LEADER','ACTIVE','A001',NULL,NULL,NULL,NOW(),NOW(),NULL),
+
+(NULL,'TL003','Rohit Verma','rohit@example.com','9000000202','pass','IT','TEAM_LEADER','ACTIVE','A001',NULL,NULL,NULL,NOW(),NOW(),NULL),
+
+(NULL,'TL004','Pooja Singh','pooja@example.com','9000000203','pass','IT','TEAM_LEADER','ACTIVE','A001',NULL,NULL,NULL,NOW(),NOW(),NULL);
+
+
+INSERT INTO employee_master VALUES
+
+(NULL,'DV002','Amit Kumar','amit@example.com','9000000301','pass','IT','DEVELOPER','ACTIVE','A001',NULL,NULL,NULL,NOW(),NOW(),NULL),
+
+(NULL,'DV003','Rahul Jain','rahul@example.com','9000000302','pass','IT','DEVELOPER','ACTIVE','A001',NULL,NULL,NULL,NOW(),NOW(),NULL),
+
+(NULL,'DV004','Simran Kaur','simran@example.com','9000000303','pass','IT','DEVELOPER','ACTIVE','A001',NULL,NULL,NULL,NOW(),NOW(),NULL),
+
+(NULL,'DV005','Vikas Yadav','vikas@example.com','9000000304','pass','IT','DEVELOPER','ACTIVE','A001',NULL,NULL,NULL,NOW(),NOW(),NULL);
+
+
+INSERT INTO employee_master VALUES
+
+(NULL,'TS002','Karan Mehta','karan@example.com','9000000401','pass','IT','TESTER','ACTIVE','A001',NULL,NULL,NULL,NOW(),NOW(),NULL),
+
+(NULL,'TS003','Anjali Gupta','anjali@example.com','9000000402','pass','IT','TESTER','ACTIVE','A001',NULL,NULL,NULL,NOW(),NOW(),NULL);
+
+INSERT INTO project_master (
+project_id,
+project_title,
+project_description,
+project_created_by,
+project_manager_id,
+project_status,
+project_progress,
+project_deadline
+) VALUES
+
+('PR002','Inventory System','Warehouse management system','A001','PM002','ACTIVE',35,'2026-04-15'),
+
+('PR003','CRM System','Customer relationship system','A001','PM003','ACTIVE',20,'2026-05-01');
+
+
+INSERT INTO team_master (
+team_id,
+project_id,
+team_leader_employee_id
+) VALUES
+
+('TM002','PR002','TL002'),
+('TM003','PR002','TL003'),
+('TM004','PR003','TL004');
+
+INSERT INTO team_member_mapping VALUES
+
+('TM002','DV002',NOW(),NOW()),
+('TM002','TS002',NOW(),NOW()),
+
+('TM003','DV003',NOW(),NOW()),
+('TM003','TS002',NOW(),NOW()),
+
+('TM004','DV004',NOW(),NOW()),
+('TM004','DV005',NOW(),NOW()),
+('TM004','TS003',NOW(),NOW());
+
+INSERT INTO task_master (
+project_id,
+team_id,
+task_title,
+task_description,
+assigned_to_employee_id,
+created_by_employee_id,
+task_status,
+task_progress,
+task_deadline
+) VALUES
+
+('PR002','TM002','Database Design','Design complete database','DV002','PM002','IN_PROGRESS',60,'2026-03-20'),
+
+('PR002','TM003','API Development','Develop backend APIs','DV003','PM002','TODO',10,'2026-03-25'),
+
+('PR003','TM004','Frontend UI','Create complete frontend','DV004','PM003','IN_PROGRESS',45,'2026-04-10'),
+
+('PR003','TM004','Testing Module','Perform system testing','TS003','PM003','TODO',0,'2026-04-15');
+
+
+INSERT INTO sub_task_master (
+sub_task_code,
+parent_task_id,
+sub_task_title,
+sub_task_description,
+assigned_to_employee_id,
+assigned_by_employee_id,
+sub_task_priority,
+sub_task_status,
+sub_task_progress,
+sub_task_deadline
+) VALUES
+
+('ST002',2,'Create Tables','Design all DB tables','DV002','TL002','HIGH','DEVELOPMENT_DONE',80,'2026-03-10'),
+
+('ST003',2,'Create Relationships','Define foreign keys','DV002','TL002','HIGH','PENDING',50,'2026-03-12'),
+
+('ST004',3,'Create API Structure','Build API base','DV003','TL003','MEDIUM','PENDING',0,'2026-03-15'),
+
+('ST005',4,'Design Login Page','Create login UI','DV004','TL004','HIGH','DEVELOPMENT_DONE',40,'2026-03-20'),
+
+('ST006',5,'Write Test Cases','Create test cases','TS003','TL004','MEDIUM','PENDING',0,'2026-03-22');
