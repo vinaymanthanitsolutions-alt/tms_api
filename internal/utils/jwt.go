@@ -11,10 +11,10 @@ func GetJwtSecret() []byte {
     return []byte(GetEnv("SECRET_KEY"))
 }
 
-func GenerateToken(empID string, email string) (string, error) {
+func GenerateToken(empID string, role string) (string, error) {
 	claims := jwt.MapClaims{
 		"emp_id": empID,
-		"email":  email,
+		"role":  role,
 		"exp":    time.Now().Add(time.Hour * 24).Unix(),
 	}
 

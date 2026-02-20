@@ -9,39 +9,78 @@ import (
 	"backend/internal/utils"
 )
 
+
 func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 
 		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Token required"})
+		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+			utils.Abort(c, http.StatusUnauthorized, "Token required")
 			return
 		}
 
 		tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
 
 		token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
+			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, jwt.ErrTokenSignatureInvalid
+			}
 			return utils.GetJwtSecret(), nil
 		})
 
 		if err != nil || !token.Valid {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			utils.Abort(c, http.StatusUnauthorized, "Invalid or Expired Token")
 			return
 		}
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid claims"})
+			utils.Abort(c, http.StatusUnauthorized, "Invalid Claims")
 			return
 		}
 
-		userIDFloat, ok := claims["emp_id"].(float64)
+		empID, ok := claims["emp_id"].(string)
 		if !ok {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid emp_id"})
+			utils.Abort(c, http.StatusUnauthorized, "Invalid Id")
 			return
 		}
 
-		c.Set("emp_id", int(userIDFloat))
+		role, ok := claims["role"].(string)
+		if !ok {
+			utils.Abort(c, http.StatusUnauthorized, "Invalid Role")
+			return
+		}
+
+		c.Set("emp_id", empID)
+		c.Set("role", role)
+
 		c.Next()
+	}
+}
+
+
+func RequireRole(allowedRoles ...string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+
+		roleInterface, exists := c.Get("role")
+		if !exists {
+			utils.Abort(c, http.StatusUnauthorized, "Invalid token")
+			return
+		}
+
+		userRole, ok := roleInterface.(string)
+		if !ok {
+			utils.Abort(c, http.StatusUnauthorized, "Invalid role type")
+			return
+		}
+
+		for _, r := range allowedRoles {
+			if userRole == r {
+				c.Next()
+				return
+			}
+		}
+
+		utils.Abort(c, http.StatusForbidden, "Access denied: insufficient permissions")
 	}
 }

@@ -90,22 +90,28 @@ func GetTasksByProject(c *gin.Context) {
 	offset := (page - 1) * limit
 
 	query := `
-SELECT 
+	SELECT 
 	t.task_id,
+	t.project_id,
 	p.project_title AS project_name,
 	t.team_id,
 	t.created_by_employee_id,
 	t.task_title,
 	t.task_status,
 	t.assigned_to_employee_id,
-	e.employee_name AS tl_name,
-	e.employee_department,
+	tl.employee_id AS tl_id,
+	tl.employee_name AS tl_name,
+	tl.employee_department,
 	t.task_deadline
 FROM task_master t
-JOIN project_master p ON t.project_id = p.project_id
-LEFT JOIN employee_master e ON t.assigned_to_employee_id = e.employee_id
+JOIN project_master p 
+	ON t.project_id = p.project_id
+LEFT JOIN team_master tm 
+	ON t.team_id = tm.team_id
+LEFT JOIN employee_master tl 
+	ON tm.team_leader_employee_id = tl.employee_id
 WHERE t.project_id = ?
-`
+	`
 
 	args := []interface{}{projectID}
 
@@ -133,24 +139,25 @@ AND (
 	var tasks []gin.H
 
 	for rows.Next() {
-		var id int
-		var projectName, teamID, managerID, department, title, status, assignedTo string
+		var id string
+		var project_id, projectName, teamID, createdBy, title, status, assignedTo, teamLeaderID, department string
 		var teamLeaderName sql.NullString
 		var deadline sql.NullString
 
 		err := rows.Scan(
-	&id,
-	&projectName,
-	&teamID,
-	&managerID,
-	&title,
-	&status,
-	&assignedTo,
-	&teamLeaderName,
-	&department,
-	&deadline,
-)
-
+			&id,
+			&project_id,     
+			&projectName,    
+			&teamID,         
+			&createdBy,      
+			&title,          
+			&status,         
+			&assignedTo,     
+			&teamLeaderID,   
+			&teamLeaderName,
+			&department,     
+			&deadline,       
+		)
 		if err != nil {
 			log.Println("GetTasksByProject Scan error:", err)
 			utils.Failed(c, http.StatusInternalServerError, "Scan failed")
@@ -159,12 +166,16 @@ AND (
 
 		tasks = append(tasks, gin.H{
 			"id":             id,
+			"project_id":     project_id,
 			"projectName":    projectName,
 			"teamID":         teamID,
+			"createdBy":      createdBy,
 			"title":          title,
 			"status":         status,
 			"assigned_to":    assignedTo,
+			"teamLeaderID":   teamLeaderID,
 			"teamLeaderName": teamLeaderName.String,
+			"department":     department,
 			"deadline":       deadline.String,
 		})
 	}
@@ -266,37 +277,55 @@ func UpdateTask(c *gin.Context) {
 	taskID := c.Param("id")
 
 	var input struct {
-		Title       string `json:"title"`
-		Description string `json:"description"`
-		AssignedTo  string `json:"assigned_to"`
-		Deadline    string `json:"deadline"`
-		Status      string `json:"status"`
+		Title       *string `json:"title"`
+		Description *string `json:"description"`
+		AssignedTo  *string `json:"assigned_to"`
+		Deadline    *string `json:"deadline"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		utils.Failed(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	_, err := config.DB.Exec(`
-	UPDATE task_master
-	SET task_title = ?, task_description = ?, assigned_to_employee_id = ?, task_deadline = ?, task_status = ?
-	WHERE task_id = ?
-`,
-	input.Title,
-	input.Description,
-	input.AssignedTo,
-	input.Deadline,
-	input.Status,
-	taskID,
-)
+	query := "UPDATE task_master SET "
+	args := []interface{}{}
 
+	if input.Title != nil {
+		query += "task_title = ?, "
+		args = append(args, *input.Title)
+	}
+
+	if input.Description != nil && *input.Description != "" {
+		query += "task_description = ?, "
+		args = append(args, *input.Description)
+	}
+
+	if input.AssignedTo != nil {
+		query += "assigned_to_employee_id = ?, "
+		args = append(args, *input.AssignedTo)
+	}
+
+	if input.Deadline != nil {
+		query += "task_deadline = ?, "
+		args = append(args, *input.Deadline)
+	}
+
+
+	if len(args) == 0 {
+		utils.Failed(c, http.StatusBadRequest, "No valid fields to update")
+		return
+	}
+	query = query[:len(query)-2] + " WHERE task_id = ?"
+	args = append(args, taskID)
+
+	_, err := config.DB.Exec(query, args...)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		utils.Failed(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	c.JSON(200, gin.H{"message": "Task updated successfully"})
+	utils.Success(c, gin.H{"message": "Task updated successfully"})
 }
 
 func DeleteTask(c *gin.Context) {

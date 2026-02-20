@@ -20,3 +20,20 @@ type SubTask struct {
 	UpdatedAt time.Time  `json:"updated_at"`
 	DeletedAt *time.Time `json:"deleted_at"`
 }
+
+
+	type GetSubTask struct {
+		ID       int    `json:"id"`
+		Title    string `json:"title"`
+		Status   string `json:"status"`
+		Priority string `json:"priority"`
+		TaskID   int    `json:"task_id"`
+	}
+
+	type Member struct {
+		EmpID      string    `json:"emp_id"`
+		EmpName    string    `json:"emp_name"`
+		Role       string    `json:"role"`
+		Department string    `json:"department"`
+		SubTasks   []GetSubTask `json:"sub_tasks"`
+	}

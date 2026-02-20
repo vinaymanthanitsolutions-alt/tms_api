@@ -5,13 +5,15 @@ import (
 	"backend/internal/services"
 	"backend/internal/utils"
 	"backend/web/models"
+	"database/sql"
 	"fmt"
 	"log"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
-//all check
+
+// all check
 func CreateSubTask(c *gin.Context) {
 	var input models.SubTask
 
@@ -205,4 +207,106 @@ func GetSubTasksByTask(c *gin.Context) {
 	}
 
 	utils.Success(c, subTasks)
+}
+
+func GetTeamMembersWithSubTasks(c *gin.Context) {
+	teamID := c.Query("team_id")
+	roleFilter := c.Query("role")
+	if teamID == "" {
+		utils.Failed(c, 400, "team_id is required")
+		return
+	}
+
+	query := `
+		SELECT 
+			e.emp_id,
+			e.emp_name,
+			e.role,
+			e.department,
+			st.id,
+			st.title,
+			st.status,
+			st.priority,
+			st.task_id
+		FROM team_members tm
+		JOIN employee e 
+			ON tm.employee_id = e.emp_id
+		LEFT JOIN sub_tasks st 
+			ON st.assigned_to = e.emp_id 
+			AND st.deleted_at IS NULL
+		WHERE tm.team_id = ?
+	`
+
+	args := []interface{}{teamID}
+
+	if roleFilter != "" && roleFilter != "ALL" {
+		query += " AND e.role = ?"
+		args = append(args, roleFilter)
+	}
+
+	query += " ORDER BY e.emp_name"
+
+	rows, err := config.DB.Query(query, args...)
+	if err != nil {
+		log.Println("GetTeamMembersWithSubTasks DB error:", err)
+		utils.Failed(c, 500, "Database error")
+		return
+	}
+	defer rows.Close()
+
+	memberMap := make(map[string]*models.Member)
+
+	for rows.Next() {
+		var empID, empName, role, department string
+		var subID sql.NullInt64
+		var title, status, priority sql.NullString
+		var taskID sql.NullInt64
+
+		err := rows.Scan(
+			&empID,
+			&empName,
+			&role,
+			&department,
+			&subID,
+			&title,
+			&status,
+			&priority,
+			&taskID,
+		)
+		if err != nil {
+			log.Println("Scan error:", err)
+			utils.Failed(c, 500, "Data processing error")
+			return
+		}
+
+		if _, exists := memberMap[empID]; !exists {
+			memberMap[empID] = &models.Member{
+				EmpID:      empID,
+				EmpName:    empName,
+				Role:       role,
+				Department: department,
+				SubTasks:   []models.GetSubTask{},
+			}
+		}
+
+		if subID.Valid {
+			memberMap[empID].SubTasks = append(memberMap[empID].SubTasks, models.GetSubTask{
+				ID:       int(subID.Int64),
+				Title:    title.String,
+				Status:   status.String,
+				Priority: priority.String,
+				TaskID:   int(taskID.Int64),
+			})
+		}
+	}
+
+	var members []models.Member
+	for _, m := range memberMap {
+		members = append(members, *m)
+	}
+
+	utils.Success(c, gin.H{
+		"team_id": teamID,
+		"members": members,
+	})
 }

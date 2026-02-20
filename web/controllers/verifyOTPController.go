@@ -50,7 +50,7 @@ func VerifyOtp(c *gin.Context) {
 		return
 	}
 
-	token, err := utils.GenerateToken(req.EmpID, email)
+	token, err := utils.GenerateToken(req.EmpID, role)
 	if err != nil {
 		utils.Failed(c, http.StatusInternalServerError, "Failed to generate token")
 		return
