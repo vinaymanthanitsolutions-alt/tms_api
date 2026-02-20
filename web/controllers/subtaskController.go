@@ -219,20 +219,20 @@ func GetTeamMembersWithSubTasks(c *gin.Context) {
 
 	query := `
 		SELECT 
-			e.emp_id,
-			e.emp_name,
-			e.role,
-			e.department,
-			st.id,
-			st.title,
-			st.status,
-			st.priority,
-			st.task_id
-		FROM team_members tm
-		JOIN employee e 
-			ON tm.employee_id = e.emp_id
-		LEFT JOIN sub_tasks st 
-			ON st.assigned_to = e.emp_id 
+			e.employee_id,
+			e.employee_name,
+			e.employee_role,
+			e.employee_department,
+			st.sub_task_id,
+			st.sub_task_title,
+			st.sub_task_status,
+			st.sub_task_priority,
+			st.parent_task_id
+		FROM team_member_mapping tm
+		JOIN employee_master e 
+			ON tm.employee_id = e.employee_id
+		LEFT JOIN sub_task_master st 
+			ON st.assigned_to_employee_id = e.employee_id 
 			AND st.deleted_at IS NULL
 		WHERE tm.team_id = ?
 	`
@@ -240,11 +240,11 @@ func GetTeamMembersWithSubTasks(c *gin.Context) {
 	args := []interface{}{teamID}
 
 	if roleFilter != "" && roleFilter != "ALL" {
-		query += " AND e.role = ?"
+		query += " AND e.employee_role = ?"
 		args = append(args, roleFilter)
 	}
 
-	query += " ORDER BY e.emp_name"
+	query += " ORDER BY e.employee_name"
 
 	rows, err := config.DB.Query(query, args...)
 	if err != nil {
