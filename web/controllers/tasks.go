@@ -257,7 +257,6 @@ func UpdateTask(c *gin.Context) {
 		Description *string `json:"description"`
 		AssignedTo  *string `json:"assigned_to"`
 		Deadline    *string `json:"deadline"`
-		Status      *string `json:"status"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -288,10 +287,6 @@ func UpdateTask(c *gin.Context) {
 		args = append(args, *input.Deadline)
 	}
 
-	if input.Status != nil {
-		query += "status = ?, "
-		args = append(args, *input.Status)
-	}
 
 	if len(args) == 0 {
 		utils.Failed(c, http.StatusBadRequest, "No valid fields to update")
