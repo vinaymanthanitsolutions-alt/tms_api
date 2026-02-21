@@ -105,7 +105,7 @@ func ShowEmployees(c *gin.Context) {
 	args := []interface{}{}
 
 	if currentUserRole != "SUPER_ADMIN" {
-		conditions = append(conditions, "e.employee_manager_id = ?")
+		conditions = append(conditions, "e.manager_employee_id = ?")
 		args = append(args, managerID)
 	}
 
@@ -141,6 +141,7 @@ func ShowEmployees(c *gin.Context) {
 	var total int
 	err := config.DB.QueryRow(countQuery, args...).Scan(&total)
 	if err != nil {
+		log.Println("Checking err ",err)
 		utils.Failed(c, http.StatusInternalServerError, "Failed to count employees")
 		return
 	}

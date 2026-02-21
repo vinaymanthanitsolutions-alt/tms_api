@@ -47,7 +47,7 @@ func LoginUser(c *gin.Context) {
 		}
 
 		log.Printf("Database Error while fetching user %s: %v", input.EmpId, err)
-		utils.Failed(c, http.StatusInternalServerError, "Internal server error")
+		utils.LogError(c, err)
 		return
 	}
 
@@ -80,7 +80,7 @@ func LoginUser(c *gin.Context) {
 
 	if err != nil {
 		log.Printf("OTP Save Error for user %s: %v", empId, err)
-		utils.Failed(c, http.StatusInternalServerError, "Unable to process login")
+		utils.LogError(c, err)
 		return
 	}
 
@@ -137,7 +137,7 @@ func ForgetPassword(c *gin.Context) {
 
 	if err != nil {
 		log.Printf("Database Error while updating OTP for email %s: %v", input.Email, err)
-		utils.Failed(c, http.StatusInternalServerError, "Unable to process request")
+		utils.LogError(c, err)
 		return
 	}
 
@@ -170,7 +170,7 @@ func ForgetPassword(c *gin.Context) {
 		}
 
 		log.Printf("Database Error while fetching emp_id for email %s: %v", input.Email, err)
-		utils.Failed(c, http.StatusInternalServerError, "Unable to process request")
+		utils.LogError(c, err)
 		return
 	}
 
@@ -219,7 +219,7 @@ func UpdatePassword(c *gin.Context) {
 		}
 
 		log.Printf("Database Error while fetching OTP for email %s: %v", input.Email, err)
-		utils.Failed(c, http.StatusInternalServerError, "Unable to process request")
+		utils.LogError(c,err)
 		return
 	}
 
@@ -264,7 +264,7 @@ func UpdatePassword(c *gin.Context) {
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		log.Printf("RowsAffected Error while updating password for email %s: %v", input.Email, err)
-		utils.Failed(c, http.StatusInternalServerError, "Unable to update password")
+		utils.LogError(c, err)
 		return
 	}
 
