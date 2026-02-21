@@ -18,6 +18,7 @@ SUPER_ADMIN
                                    └── raises QUERY
 
  CREATE DATABASE enterprise_task_management;
+ use enterprise_task_management;
  CREATE TABLE employee_master (
 
     employee_sr_no INT AUTO_INCREMENT PRIMARY KEY,
