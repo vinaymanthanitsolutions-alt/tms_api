@@ -9,7 +9,7 @@ import (
 
 	"backend/internal/config"
 	"backend/internal/utils"
-	"backend/web/models"
+	"backend/internal/web/models"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -130,7 +130,6 @@ func ShowEmployees(c *gin.Context) {
 		args = append(args, searchTerm, searchTerm)
 	}
 
-
 	where := ""
 	if len(conditions) > 0 {
 		where = " WHERE " + strings.Join(conditions, " AND ")
@@ -141,7 +140,7 @@ func ShowEmployees(c *gin.Context) {
 	var total int
 	err := config.DB.QueryRow(countQuery, args...).Scan(&total)
 	if err != nil {
-		log.Println("Checking err ",err)
+		log.Println("Checking err ", err)
 		utils.Failed(c, http.StatusInternalServerError, "Failed to count employees")
 		return
 	}
@@ -410,7 +409,6 @@ func GetEmployeesUnderSameManager(c *gin.Context) {
 		}
 		employees = append(employees, emp)
 	}
-
 
 	utils.Success(c, employees)
 }
