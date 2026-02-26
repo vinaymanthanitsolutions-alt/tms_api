@@ -11,7 +11,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
-//ALL CHECKED
+
+// ALL CHECKED
 func LoginUser(c *gin.Context) {
 	var input struct {
 		EmpId    string `json:"empID"`
@@ -219,7 +220,7 @@ func UpdatePassword(c *gin.Context) {
 		}
 
 		log.Printf("Database Error while fetching OTP for email %s: %v", input.Email, err)
-		utils.LogError(c,err)
+		utils.LogError(c, err)
 		return
 	}
 

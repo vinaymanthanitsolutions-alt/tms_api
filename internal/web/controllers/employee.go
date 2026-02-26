@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"database/sql"
 	"log"
 	"net/http"
 	"strconv"
@@ -13,7 +14,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
-//all done
+
+// all done
 func Add(c *gin.Context) {
 	var data models.UserGet
 
@@ -72,9 +74,9 @@ func ShowEmployees(c *gin.Context) {
 
 	// GET /emp?emp_id=SA001&role=SUPER_ADMIN&status=ALL&filter_role=ADMIN&page=1&limit=10
 
-	managerID := strings.TrimSpace(c.Query("emp_id"))   
-	currentUserRole := strings.TrimSpace(c.Query("role")) 
-	filterRole := strings.TrimSpace(c.Query("filter_role")) 
+	managerID := strings.TrimSpace(c.Query("emp_id"))
+	currentUserRole := strings.TrimSpace(c.Query("role"))
+	filterRole := strings.TrimSpace(c.Query("filter_role"))
 
 	if currentUserRole != "SUPER_ADMIN" && managerID == "" {
 		utils.Failed(c, http.StatusBadRequest, "emp_id is required")
@@ -102,7 +104,6 @@ func ShowEmployees(c *gin.Context) {
 	conditions := []string{}
 	args := []interface{}{}
 
-	
 	if currentUserRole != "SUPER_ADMIN" {
 		conditions = append(conditions, "e.manager_employee_id = ?")
 		args = append(args, managerID)
@@ -114,7 +115,7 @@ func ShowEmployees(c *gin.Context) {
 	}
 
 	if filterRole != "" && filterRole != "ALL" {
-	
+
 		if currentUserRole != "SUPER_ADMIN" && filterRole == "SUPER_ADMIN" {
 			utils.Failed(c, http.StatusForbidden, "Not allowed to view SUPER_ADMIN")
 			return
@@ -123,13 +124,11 @@ func ShowEmployees(c *gin.Context) {
 		args = append(args, filterRole)
 	}
 
-
 	if search != "" {
 		conditions = append(conditions, "(e.employee_id LIKE ? OR e.employee_name LIKE ?)")
 		searchTerm := "%" + search + "%"
 		args = append(args, searchTerm, searchTerm)
 	}
-
 
 	where := ""
 	if len(conditions) > 0 {
@@ -141,7 +140,7 @@ func ShowEmployees(c *gin.Context) {
 	var total int
 	err := config.DB.QueryRow(countQuery, args...).Scan(&total)
 	if err != nil {
-		log.Println("Checking err ",err)
+		log.Println("Checking err ", err)
 		utils.Failed(c, http.StatusInternalServerError, "Failed to count employees")
 		return
 	}
@@ -195,7 +194,6 @@ func ShowEmployees(c *gin.Context) {
 			return
 		}
 
-		
 		if emp.Role == "SUPER_ADMIN" {
 			continue
 		}
@@ -365,25 +363,32 @@ func UpdateProfile(c *gin.Context) {
 func GetEmployeesUnderSameManager(c *gin.Context) {
 
 	empID := c.Query("emp_id")
+	filterRole := c.Query("filter_role")
+
 	if empID == "" {
 		utils.Failed(c, http.StatusBadRequest, "emp_id is required")
 		return
 	}
 
-	query := `
+	baseQuery := `
 		SELECT 
 			e.employee_id,
 			e.employee_name,
 			e.employee_role
 		FROM employee_master e
-		WHERE e.manager_employee_id = (
-			SELECT manager_employee_id 
-			FROM employee_master 
-			WHERE employee_id = ?
-		)
+		WHERE e.pm_employee_id = ?
 	`
 
-	rows, err := config.DB.Query(query, empID)
+	var rows *sql.Rows
+	var err error
+
+	if filterRole != "" && filterRole != "ALL" {
+		query := baseQuery + " AND e.employee_role = ?"
+		rows, err = config.DB.Query(query, empID, filterRole)
+	} else {
+		rows, err = config.DB.Query(baseQuery, empID)
+	}
+
 	if err != nil {
 		utils.Failed(c, http.StatusInternalServerError, err.Error())
 		return
@@ -403,11 +408,6 @@ func GetEmployeesUnderSameManager(c *gin.Context) {
 			return
 		}
 		employees = append(employees, emp)
-	}
-
-	if len(employees) == 0 {
-		utils.Success(c, []models.EmployeeUnderManager{})
-		return
 	}
 
 	utils.Success(c, employees)
