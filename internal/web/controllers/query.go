@@ -3,7 +3,7 @@ package controllers
 import (
 	"backend/internal/config"
 	"backend/internal/utils"
-	"backend/web/models"
+	"backend/internal/web/models"
 	"database/sql"
 	"log"
 	"net/http"

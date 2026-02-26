@@ -3,7 +3,7 @@ package controllers
 import (
 	"backend/internal/config"
 	"backend/internal/utils"
-	"backend/web/models"
+	"backend/internal/web/models"
 	"database/sql"
 	"log"
 	"math"
@@ -344,7 +344,7 @@ func GetProjectsByAdmin(c *gin.Context) {
         p.project_id,
         p.project_title,
         p.project_description,
-        p.project_manager_id,
+        COALESCE(p.project_manager_id,''),
         p.project_status,
         p.project_deadline,
         p.project_progress,
@@ -414,7 +414,7 @@ func GetProjectsByAdmin(c *gin.Context) {
 	).Scan(&total)
 
 	if err != nil {
-		utils.Failed(c, http.StatusInternalServerError, "Count failed")
+		utils.LogError(c, err)
 		return
 	}
 

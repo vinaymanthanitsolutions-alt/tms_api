@@ -4,7 +4,7 @@ import (
 	"backend/internal/config"
 	"backend/internal/services"
 	"backend/internal/utils"
-	"backend/web/models"
+	"backend/internal/web/models"
 	"database/sql"
 	"fmt"
 	"log"

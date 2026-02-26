@@ -8,7 +8,7 @@ import (
 
 	"backend/internal/config"
 	"backend/internal/utils"
-	"backend/web/models"
+	"backend/internal/web/models"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"

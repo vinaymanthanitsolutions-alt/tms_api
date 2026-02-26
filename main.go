@@ -2,7 +2,7 @@ package main
 
 import (
 	"backend/internal/config"
-	"backend/web/routes"
+	"backend/internal/web/routes"
 	"log"
 	"os"
 

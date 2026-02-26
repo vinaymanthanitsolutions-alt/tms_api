@@ -48,7 +48,7 @@ func GetEmployeeCounts(c *gin.Context) {
 
 	if err != nil {
 		log.Println(err)
-		utils.Failed(c, http.StatusInternalServerError, "Count fetch failed")
+		utils.LogError(c, err)
 		return
 	}
 
