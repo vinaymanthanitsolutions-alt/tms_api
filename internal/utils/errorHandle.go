@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"net/http"
 	"runtime"
 	"strings"
 
@@ -29,7 +28,7 @@ func Abort(c *gin.Context, status int, message string) {
 	})
 }
 
-func LogError(c *gin.Context, err error) {
+func LogError(err error) {
 	if err == nil {
 		return
 	}
@@ -39,9 +38,4 @@ func LogError(c *gin.Context, err error) {
 	shortFile := parts[len(parts)-1]
 
 	println("ERROR:", err.Error(), "| File:", shortFile, "| Line:", line)
-
-	c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-		"success": false,
-		"error":   "Internal server error",
-	})
 }

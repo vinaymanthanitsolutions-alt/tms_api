@@ -414,7 +414,7 @@ func GetProjectsByAdmin(c *gin.Context) {
 	).Scan(&total)
 
 	if err != nil {
-		utils.LogError(c, err)
+		utils.LogError(err)
 		return
 	}
 

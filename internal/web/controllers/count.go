@@ -48,7 +48,7 @@ func GetEmployeeCounts(c *gin.Context) {
 
 	if err != nil {
 		log.Println(err)
-		utils.LogError(c, err)
+		utils.LogError(err)
 		return
 	}
 

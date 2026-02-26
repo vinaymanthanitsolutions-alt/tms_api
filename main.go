@@ -2,6 +2,7 @@ package main
 
 import (
 	"backend/internal/config"
+	"backend/internal/middleware"
 	"backend/internal/web/routes"
 	"log"
 	"os"
@@ -34,6 +35,7 @@ func main() {
 
 	r := gin.Default()
 
+	r.Use(middleware.ErrorMiddleware())
 	r.Use(cors.New(config.CorsConfig))
 
 	r.GET("/", func(c *gin.Context) {

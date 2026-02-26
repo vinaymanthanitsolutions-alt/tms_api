@@ -20,7 +20,6 @@ func LoginUser(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		log.Printf("Login Bind Error: %v", err)
 		utils.Failed(c, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
@@ -35,20 +34,18 @@ func LoginUser(c *gin.Context) {
 
 	err := config.DB.QueryRow(
 		`SELECT employee_id, employee_password 
-	 FROM employee_master 
-	 WHERE employee_id = ? AND deleted_at IS NULL`,
+		 FROM employee_master 
+		 WHERE employee_id = ? AND deleted_at IS NULL`,
 		input.EmpId,
 	).Scan(&empId, &storedPassword)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			log.Printf("Login Failed - User not found: %s", input.EmpId)
 			utils.Failed(c, http.StatusUnauthorized, "Invalid credentials")
 			return
 		}
 
-		log.Printf("Database Error while fetching user %s: %v", input.EmpId, err)
-		utils.LogError(c, err)
+		c.Error(err)
 		return
 	}
 
@@ -56,15 +53,13 @@ func LoginUser(c *gin.Context) {
 		[]byte(storedPassword),
 		[]byte(input.Password),
 	); err != nil {
-		log.Printf("Password mismatch for user %s", input.EmpId)
 		utils.Failed(c, http.StatusUnauthorized, "Invalid credentials")
 		return
 	}
 
 	otp, err := utils.GenerateOTP()
 	if err != nil {
-		log.Printf("OTP Generation Error for user %s: %v", empId, err)
-		utils.Failed(c, http.StatusInternalServerError, "Unable to process login")
+		c.Error(err) 
 		return
 	}
 
@@ -72,34 +67,28 @@ func LoginUser(c *gin.Context) {
 
 	result, err := config.DB.Exec(
 		`UPDATE employee_master 
-	 SET employee_otp = ?, otp_expire_at = ? 
-	 WHERE employee_id = ?`,
+		 SET employee_otp = ?, otp_expire_at = ? 
+		 WHERE employee_id = ?`,
 		otp,
 		otpExpiry,
 		empId,
 	)
 
 	if err != nil {
-		log.Printf("OTP Save Error for user %s: %v", empId, err)
-		utils.LogError(c, err)
+		c.Error(err) 
 		return
 	}
 
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
-		log.Printf("OTP update failed, no rows affected for user %s", empId)
 		utils.Failed(c, http.StatusInternalServerError, "Unable to process login")
 		return
 	}
 
-	log.Printf("Login successful, OTP generated for user %s", empId)
-
-	c.JSON(http.StatusOK, gin.H{
+	utils.Success(c, gin.H{
 		"empID":   empId,
 		"message": "OTP sent to your registered email",
-		"success": true,
 	})
-
 }
 
 func ForgetPassword(c *gin.Context) {
@@ -138,7 +127,7 @@ func ForgetPassword(c *gin.Context) {
 
 	if err != nil {
 		log.Printf("Database Error while updating OTP for email %s: %v", input.Email, err)
-		utils.LogError(c, err)
+		utils.LogError(err)
 		return
 	}
 
@@ -171,7 +160,7 @@ func ForgetPassword(c *gin.Context) {
 		}
 
 		log.Printf("Database Error while fetching emp_id for email %s: %v", input.Email, err)
-		utils.LogError(c, err)
+		utils.LogError(err)
 		return
 	}
 
@@ -220,7 +209,7 @@ func UpdatePassword(c *gin.Context) {
 		}
 
 		log.Printf("Database Error while fetching OTP for email %s: %v", input.Email, err)
-		utils.LogError(c, err)
+		utils.LogError(err)
 		return
 	}
 
@@ -265,7 +254,7 @@ func UpdatePassword(c *gin.Context) {
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		log.Printf("RowsAffected Error while updating password for email %s: %v", input.Email, err)
-		utils.LogError(c, err)
+		utils.LogError(err)
 		return
 	}
 
