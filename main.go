@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/gin-contrib/cors"
+	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -35,6 +36,7 @@ func main() {
 
 	r := gin.Default()
 
+	r.Use(gzip.Gzip(gzip.DefaultCompression))
 	r.Use(middleware.ErrorMiddleware())
 	r.Use(cors.New(config.CorsConfig))
 

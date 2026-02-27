@@ -3,19 +3,19 @@ package controllers
 import (
 	"backend/internal/config"
 	"backend/internal/utils"
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
-//all checked
+
+// all checked
 func GetEmployeeCounts(c *gin.Context) {
 
 	managerID := c.Query("manager_id")
 
 	var (
 		total, active, inactive, suspended int
-		err error
+		err                                error
 	)
 
 	if managerID != "" {
@@ -47,8 +47,7 @@ func GetEmployeeCounts(c *gin.Context) {
 	}
 
 	if err != nil {
-		log.Println(err)
-		utils.LogError(err)
+		c.Error(err)
 		return
 	}
 
@@ -72,7 +71,7 @@ func GetProjectCounts(c *gin.Context) {
 
 	var (
 		total, planning, active, completed int
-		err error
+		err                                error
 	)
 
 	if pmID != "" {
@@ -106,8 +105,7 @@ func GetProjectCounts(c *gin.Context) {
 	}
 
 	if err != nil {
-		log.Println(err)
-		utils.Failed(c, http.StatusInternalServerError, "Failed to fetch project counts")
+		c.Error(err)
 		return
 	}
 
@@ -125,11 +123,9 @@ func GetTeamCounts(c *gin.Context) {
 	teamLeaderID := c.Query("team_leader_id")
 	pmID := c.Query("pm_id")
 	adminID := c.Query("admin_id")
-
-	var (
-		total int
-		err   error
-	)
+ 
+	var	total int
+	var	err   error
 
 	switch {
 	case projectID != "":
@@ -173,8 +169,7 @@ func GetTeamCounts(c *gin.Context) {
 	}
 
 	if err != nil {
-		utils.Failed(c, http.StatusInternalServerError, "Failed to fetch team count")
-		log.Println(err)
+		c.Error(err)
 		return
 	}
 
