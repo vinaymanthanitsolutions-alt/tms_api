@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"database/sql"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -58,23 +57,20 @@ func Add(c *gin.Context) {
 		data.ManagerID,
 	)
 	if err != nil {
-
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		c.Error(err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Employee created successfully",
-	})
+	utils.Success(c, "Employee created successfully")
 }
 
 func ShowEmployees(c *gin.Context) {
 
 	// GET /emp?emp_id=SA001&role=SUPER_ADMIN&status=ALL&filter_role=ADMIN&page=1&limit=10
 
+	// managerID := c.Get("emp_id")
 	managerID := strings.TrimSpace(c.Query("emp_id"))
+	// currentUserRole := c.Get("role")
 	currentUserRole := strings.TrimSpace(c.Query("role"))
 	filterRole := strings.TrimSpace(c.Query("filter_role"))
 
@@ -140,8 +136,7 @@ func ShowEmployees(c *gin.Context) {
 	var total int
 	err := config.DB.QueryRow(countQuery, args...).Scan(&total)
 	if err != nil {
-		log.Println("Checking err ", err)
-		utils.Failed(c, http.StatusInternalServerError, "Failed to count employees")
+		c.Error(err)
 		return
 	}
 
@@ -167,8 +162,7 @@ func ShowEmployees(c *gin.Context) {
 
 	rows, err := config.DB.Query(query, queryArgs...)
 	if err != nil {
-		log.Println("Failed to fetch employees:", err)
-		utils.Failed(c, http.StatusInternalServerError, "Failed to fetch employees")
+		c.Error(err)
 		return
 	}
 	defer rows.Close()
@@ -189,8 +183,7 @@ func ShowEmployees(c *gin.Context) {
 			&emp.ManagerID,
 			&emp.ManagerName,
 		); err != nil {
-			log.Println("Scan error:", err)
-			utils.Failed(c, http.StatusInternalServerError, "Error scanning employees")
+			c.Error(err)
 			return
 		}
 
@@ -219,15 +212,15 @@ func DeleteUser(c *gin.Context) {
 	query := `UPDATE employee_master SET deleted_at = NOW(), employee_status = 'SUSPENDED' WHERE employee_id=?`
 	result, err := config.DB.Exec(query, empId)
 	if err != nil {
-		utils.Failed(c, 501, "Database executing query error ")
+		c.Error(err)
 		return
 	}
 	rowAffected, err := result.RowsAffected()
 	if err != nil {
-		utils.Failed(c, http.StatusNotFound, "Unable to verify deletion")
+		c.Error(err)
 		return
 	} else if rowAffected == 0 {
-		utils.Failed(c, http.StatusNotFound, "Userid is not in database")
+		utils.Failed(c, http.StatusNotFound, "Nothing Updated")
 		return
 	}
 	utils.Success(c, "User data deleted successfully")
@@ -251,14 +244,17 @@ func RestoreUser(c *gin.Context) {
 
 	result, err := config.DB.Exec(query, empId)
 	if err != nil {
-		utils.Failed(c, http.StatusInternalServerError, "Database error")
+		c.Error(err)
 		return
 	}
 
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected == 0 {
-		utils.Failed(c, http.StatusNotFound, "User not found or already active")
+	rowsAffected, err := result.RowsAffected()
+	if err!=nil {
+		c.Error(err)
 		return
+	} else if rowsAffected == 0 {
+		utils.Failed(c, http.StatusNotFound, "User already active ")
+		return 
 	}
 
 	utils.Success(c, "User restored successfully")
@@ -282,7 +278,7 @@ func UpdateProfile(c *gin.Context) {
 	).Scan(&exists)
 
 	if err != nil {
-		utils.Failed(c, http.StatusNotFound, "Employee not found")
+		c.Error(err)
 		return
 	}
 
@@ -301,7 +297,7 @@ func UpdateProfile(c *gin.Context) {
 
 	if data.Password != "" {
 
-		// Update including password
+		// UPDATE INCLUDING PASSWORD
 		_, err = config.DB.Exec(`
 			UPDATE employee_master SET
 				employee_name = ?,
@@ -327,7 +323,7 @@ func UpdateProfile(c *gin.Context) {
 
 	} else {
 
-		// Update without password
+		// UPDATE WITHOUT PASSWORD
 		_, err = config.DB.Exec(`
 			UPDATE employee_master SET
 				employee_name = ?,
@@ -351,7 +347,8 @@ func UpdateProfile(c *gin.Context) {
 	}
 
 	if err != nil {
-		utils.Failed(c, http.StatusInternalServerError, "Failed to update employee")
+		utils.LogError(err)
+		c.Error(err)
 		return
 	}
 
