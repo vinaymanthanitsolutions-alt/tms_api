@@ -4,7 +4,6 @@ import (
 	"backend/internal/config"
 	"backend/internal/utils"
 	"database/sql"
-	"log"
 	"net/http"
 	"time"
 
@@ -12,7 +11,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// ALL CHECKED
 func LoginUser(c *gin.Context) {
 	var input struct {
 		EmpId    string `json:"empID"`
@@ -44,22 +42,18 @@ func LoginUser(c *gin.Context) {
 			utils.Failed(c, http.StatusUnauthorized, "Invalid credentials")
 			return
 		}
-
-		c.Error(err)
+		c.Error(err) 
 		return
 	}
 
-	if err := bcrypt.CompareHashAndPassword(
-		[]byte(storedPassword),
-		[]byte(input.Password),
-	); err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(input.Password)); err != nil {
 		utils.Failed(c, http.StatusUnauthorized, "Invalid credentials")
 		return
 	}
 
 	otp, err := utils.GenerateOTP()
 	if err != nil {
-		c.Error(err) 
+		c.Error(err)
 		return
 	}
 
@@ -73,9 +67,8 @@ func LoginUser(c *gin.Context) {
 		otpExpiry,
 		empId,
 	)
-
 	if err != nil {
-		c.Error(err) 
+		c.Error(err)
 		return
 	}
 
@@ -97,7 +90,6 @@ func ForgetPassword(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		log.Printf("ForgetPassword Bind Error: %v", err)
 		utils.Failed(c, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
@@ -109,8 +101,7 @@ func ForgetPassword(c *gin.Context) {
 
 	otp, err := utils.GenerateOTP()
 	if err != nil {
-		log.Printf("OTP Generation Error for email %s: %v", input.Email, err)
-		utils.Failed(c, http.StatusInternalServerError, "Unable to process request")
+		c.Error(err)
 		return
 	}
 
@@ -118,28 +109,24 @@ func ForgetPassword(c *gin.Context) {
 
 	result, err := config.DB.Exec(
 		`UPDATE employee_master 
-	 SET employee_otp = ?, otp_expire_at = ? 
-	 WHERE employee_email = ? AND deleted_at IS NULL`,
+		 SET employee_otp = ?, otp_expire_at = ? 
+		 WHERE employee_email = ? AND deleted_at IS NULL`,
 		otp,
 		otpExpiry,
 		input.Email,
 	)
-
 	if err != nil {
-		log.Printf("Database Error while updating OTP for email %s: %v", input.Email, err)
-		utils.LogError(err)
+		c.Error(err)
 		return
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		log.Printf("RowsAffected Error for email %s: %v", input.Email, err)
-		utils.Failed(c, http.StatusInternalServerError, "Unable to process request")
+		c.Error(err)
 		return
 	}
 
 	if rowsAffected == 0 {
-		log.Printf("ForgetPassword attempt for unregistered email: %s", input.Email)
 		utils.Failed(c, http.StatusNotFound, "Email not registered")
 		return
 	}
@@ -147,24 +134,19 @@ func ForgetPassword(c *gin.Context) {
 	var empId string
 	err = config.DB.QueryRow(
 		`SELECT employee_id 
-	 FROM employee_master 
-	 WHERE employee_email = ? AND deleted_at IS NULL`,
+		 FROM employee_master 
+		 WHERE employee_email = ? AND deleted_at IS NULL`,
 		input.Email,
 	).Scan(&empId)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			log.Printf("EmpID fetch failed, no record found for email %s", input.Email)
 			utils.Failed(c, http.StatusNotFound, "Email not registered")
 			return
 		}
-
-		log.Printf("Database Error while fetching emp_id for email %s: %v", input.Email, err)
-		utils.LogError(err)
+		c.Error(err)
 		return
 	}
-
-	log.Printf("ForgetPassword OTP generated successfully for email %s", input.Email)
 
 	utils.Success(c, gin.H{
 		"empID":   empId,
@@ -173,7 +155,6 @@ func ForgetPassword(c *gin.Context) {
 }
 
 func UpdatePassword(c *gin.Context) {
-
 	var input struct {
 		Email       string `json:"email"`
 		OTP         string `json:"otp"`
@@ -181,7 +162,6 @@ func UpdatePassword(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		log.Printf("UpdatePassword Bind Error: %v", err)
 		utils.Failed(c, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
@@ -196,75 +176,60 @@ func UpdatePassword(c *gin.Context) {
 
 	err := config.DB.QueryRow(
 		`SELECT employee_otp, otp_expire_at 
-	 FROM employee_master 
-	 WHERE employee_email = ? AND deleted_at IS NULL`,
+		 FROM employee_master 
+		 WHERE employee_email = ? AND deleted_at IS NULL`,
 		input.Email,
 	).Scan(&dbOTP, &expiry)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			log.Printf("UpdatePassword attempt for unregistered email: %s", input.Email)
 			utils.Failed(c, http.StatusNotFound, "Email not registered")
 			return
 		}
-
-		log.Printf("Database Error while fetching OTP for email %s: %v", input.Email, err)
-		utils.LogError(err)
+		c.Error(err)
 		return
 	}
 
 	if dbOTP != input.OTP {
-		log.Printf("Invalid OTP attempt for email %s", input.Email)
 		utils.Failed(c, http.StatusUnauthorized, "Invalid OTP")
 		return
 	}
 
 	if time.Now().After(expiry) {
-		log.Printf("Expired OTP attempt for email %s", input.Email)
 		utils.Failed(c, http.StatusUnauthorized, "OTP expired")
 		return
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword(
-		[]byte(input.NewPassword),
-		bcrypt.DefaultCost,
-	)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.NewPassword), bcrypt.DefaultCost)
 	if err != nil {
-		log.Printf("Password Hashing Error for email %s: %v", input.Email, err)
-		utils.Failed(c, http.StatusInternalServerError, "Unable to update password")
+		c.Error(err)
 		return
 	}
 
 	result, err := config.DB.Exec(
 		`UPDATE employee_master 
-	 SET employee_password = ?, 
-	     employee_otp = NULL, 
-	     otp_expire_at = NULL
-	 WHERE employee_email = ? AND deleted_at IS NULL`,
+		 SET employee_password = ?, 
+		     employee_otp = NULL, 
+		     otp_expire_at = NULL
+		 WHERE employee_email = ? AND deleted_at IS NULL`,
 		string(hashedPassword),
 		input.Email,
 	)
-
 	if err != nil {
-		log.Printf("Database Error while updating password for email %s: %v", input.Email, err)
-		utils.Failed(c, http.StatusInternalServerError, "Unable to update password")
+		c.Error(err)
 		return
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		log.Printf("RowsAffected Error while updating password for email %s: %v", input.Email, err)
-		utils.LogError(err)
+		c.Error(err)
 		return
 	}
 
 	if rowsAffected == 0 {
-		log.Printf("Password update failed, no rows affected for email %s", input.Email)
 		utils.Failed(c, http.StatusInternalServerError, "Unable to update password")
 		return
 	}
-
-	log.Printf("Password updated successfully for email %s", input.Email)
 
 	utils.Success(c, gin.H{
 		"message": "Password updated successfully",

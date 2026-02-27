@@ -5,7 +5,6 @@ import (
 	"backend/internal/utils"
 	"backend/internal/web/models"
 	"database/sql"
-	"log"
 	"net/http"
 	"time"
 
@@ -40,8 +39,7 @@ func CreateQuery(c *gin.Context) {
 	)
 
 	if err != nil {
-		log.Println("CreateQuery error:", err)
-		utils.Failed(c, http.StatusInternalServerError, "Failed to create query")
+		c.Error(err)
 		return
 	}
 
@@ -66,7 +64,7 @@ func GetAllQueries(c *gin.Context) {
 	WHERE deleted_at IS NULL
 	`)
 	if err != nil {
-		utils.Failed(c, 500, "Failed to fetch queries")
+		c.Error(err)
 		return
 	}
 	defer rows.Close()
@@ -86,7 +84,7 @@ func GetAllQueries(c *gin.Context) {
 			&priority, &status, &createdAt, &updatedAt,
 		)
 		if err != nil {
-			utils.Failed(c, 500, "Scan error")
+			c.Error(err)
 			return
 		}
 
@@ -131,7 +129,7 @@ func GetQueriesByProject(c *gin.Context) {
 	`, projectID)
 
 	if err != nil {
-		utils.Failed(c, 500, "Failed to fetch queries")
+		c.Error(err)
 		return
 	}
 	defer rows.Close()
@@ -143,7 +141,7 @@ func GetQueriesByProject(c *gin.Context) {
 		var title, status, priority string
 
 		if err := rows.Scan(&id, &title, &status, &priority); err != nil {
-			utils.Failed(c, 500, "Scan error")
+			c.Error(err)
 			return
 		}
 
@@ -179,7 +177,7 @@ func UpdateQuery(c *gin.Context) {
 	`, payload.Status, payload.AssignedTo, id)
 
 	if err != nil {
-		utils.Failed(c, 500, "Update failed")
+		c.Error(err)
 		return
 	}
 

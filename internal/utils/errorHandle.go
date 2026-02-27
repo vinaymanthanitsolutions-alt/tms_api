@@ -33,7 +33,7 @@ func LogError(err error) {
 		return
 	}
 
-	_, file, line, _ := runtime.Caller(1)
+	_, file, line, _ := runtime.Caller(3)
 	parts := strings.Split(file, "/")
 	shortFile := parts[len(parts)-1]
 

@@ -19,17 +19,15 @@ func CreateProject(c *gin.Context) {
 	var p models.Project
 
 	if err := c.ShouldBindJSON(&p); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		utils.Failed(c, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
 
-	
 	var deadline sql.NullString
 	if p.Deadline != "" {
-		
 		t, err := time.Parse(time.RFC3339, p.Deadline)
 		if err != nil {
-			c.JSON(400, gin.H{"error": "Invalid deadline format. Use 2026-01-20T00:00:00Z"})
+			utils.Failed(c, http.StatusBadRequest, "Invalid deadline format. Use 2026-01-20T00:00:00Z")
 			return
 		}
 		deadline = sql.NullString{String: t.Format("2006-01-02 15:04:05"), Valid: true}
@@ -43,19 +41,16 @@ func CreateProject(c *gin.Context) {
 	VALUES (?, ?, ?, ?, ?, ?)
 	`
 
-	_, err := config.DB.Exec(
+	if _, err := config.DB.Exec(
 		query,
 		p.ProjectID,
 		p.Name,
 		p.Description,
 		p.CreatedBy,
-		p.PMID,   
-		deadline, 
-	)
-
-	if err != nil {
-		log.Println("CreateProject error:", err)
-		utils.Failed(c, http.StatusConflict, "Project creation failed")
+		p.PMID,
+		deadline,
+	); err != nil {
+		c.Error(err)
 		return
 	}
 
@@ -64,10 +59,10 @@ func CreateProject(c *gin.Context) {
 
 func UpdateProject(c *gin.Context) {
 	id := c.Param("project_id")
-
 	var p models.Project
+
 	if err := c.ShouldBindJSON(&p); err != nil {
-		utils.Failed(c, http.StatusBadRequest, "Invalid data")
+		utils.Failed(c, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
 
@@ -77,64 +72,45 @@ func UpdateProject(c *gin.Context) {
 	WHERE project_id=?
 	`
 
-	_, err := config.DB.Exec(
-		query,
-		p.Name,
-		p.Description,
-		p.Status,
-		p.Deadline,
-		id,
-	)
-
-	if err != nil {
-		utils.Failed(c, http.StatusInternalServerError, "Update failed")
+	if _, err := config.DB.Exec(query, p.Name, p.Description, p.Status, p.Deadline, id); err != nil {
+		c.Error(err)
 		return
 	}
 
-	utils.Success(c, "Project updated")
+	utils.Success(c, "Project updated successfully")
 }
-
 func DeleteProject(c *gin.Context) {
 	id := c.Param("project_id")
 
-	_, err := config.DB.Exec(
-		"DELETE FROM project_master WHERE project_id=?",
-		id,
-	)
-
-	if err != nil {
-		utils.Failed(c, http.StatusInternalServerError, "Delete failed")
+	if _, err := config.DB.Exec("DELETE FROM project_master WHERE project_id=?", id); err != nil {
+		c.Error(err)
 		return
 	}
 
-	utils.Success(c, "Project deleted")
+	utils.Success(c, "Project deleted successfully")
 }
 
 func GetProjectsByPM(c *gin.Context) {
+	// pmID := c.Get("emp_id")
 	pmID := c.Query("pm_id")
-
-	log.Printf("PM ID = [%s]\n", pmID)
 
 	rows, err := config.DB.Query(`
 		SELECT project_id, project_title, project_status, project_deadline
 		FROM project_master
-		WHERE project_manager_id = ?
-	`, pmID)
-
+		WHERE project_manager_id = ?`, pmID)
 	if err != nil {
-		utils.Failed(c, 500, "Failed to fetch projects")
+		c.Error(err)
 		return
 	}
 	defer rows.Close()
 
 	projects := []map[string]interface{}{}
-
 	for rows.Next() {
 		var id, name, status string
 		var deadline sql.NullTime
 
 		if err := rows.Scan(&id, &name, &status, &deadline); err != nil {
-			utils.Failed(c, 500, "Scan error")
+			c.Error(err)
 			return
 		}
 
@@ -189,13 +165,17 @@ func GetAllProjects(c *gin.Context) {
 		LEFT JOIN employee_master pm ON p.project_manager_id = pm.employee_id
 		LEFT JOIN employee_master pm_mgr ON pm.manager_employee_id = pm_mgr.employee_id
 	`
+
 	args := []interface{}{}
 	where := ""
 
 	if search != "" {
-		where = `WHERE p.project_title LIKE ? OR p.project_description LIKE ? OR p.project_manager_id LIKE ? OR p.project_created_by LIKE ?`
+		where = `WHERE p.project_title LIKE ? 
+		          OR p.project_description LIKE ? 
+		          OR p.project_manager_id LIKE ? 
+		          OR p.project_created_by LIKE ?`
 		searchPattern := "%" + search + "%"
-		args = append(args, searchPattern, searchPattern, searchPattern,searchPattern)
+		args = append(args, searchPattern, searchPattern, searchPattern, searchPattern)
 	}
 
 	if where != "" {
@@ -207,7 +187,7 @@ func GetAllProjects(c *gin.Context) {
 
 	rows, err := config.DB.Query(query, args...)
 	if err != nil {
-		utils.Failed(c, http.StatusInternalServerError, "Fetch failed")
+		c.Error(err)
 		return
 	}
 	defer rows.Close()
@@ -220,8 +200,20 @@ func GetAllProjects(c *gin.Context) {
 		var progress int
 		var deadline sql.NullTime
 
-		if err := rows.Scan(&projectID, &name, &description, &createdBy, &pmID, &pmName, &pmManagerID, &pmManagerName, &status, &progress, &deadline); err != nil {
-			utils.Failed(c, http.StatusInternalServerError, "Scan error")
+		if err := rows.Scan(
+			&projectID,
+			&name,
+			&description,
+			&createdBy,
+			&pmID,
+			&pmName,
+			&pmManagerID,
+			&pmManagerName,
+			&status,
+			&progress,
+			&deadline,
+		); err != nil {
+			c.Error(err) 
 			return
 		}
 
@@ -252,10 +244,18 @@ func GetAllProjects(c *gin.Context) {
 		projects = append(projects, project)
 	}
 
+	if err := rows.Err(); err != nil {
+		c.Error(err)
+		return
+	}
+
 	countQuery := "SELECT COUNT(*) FROM project_master p"
 	countArgs := []interface{}{}
+
 	if search != "" {
-		countQuery += " WHERE p.project_title LIKE ? OR p.project_description LIKE ? OR p.project_manager_id LIKE ?"
+		countQuery += ` WHERE p.project_title LIKE ? 
+		                OR p.project_description LIKE ? 
+		                OR p.project_manager_id LIKE ?`
 		searchPattern := "%" + search + "%"
 		countArgs = append(countArgs, searchPattern, searchPattern, searchPattern)
 	}
@@ -263,7 +263,7 @@ func GetAllProjects(c *gin.Context) {
 	var total int
 	err = config.DB.QueryRow(countQuery, countArgs...).Scan(&total)
 	if err != nil {
-		utils.Failed(c, http.StatusInternalServerError, "Count failed")
+		c.Error(err) 
 		return
 	}
 
@@ -297,7 +297,7 @@ func AssignProjectManager(c *gin.Context) {
         if err == sql.ErrNoRows {
             utils.Failed(c, http.StatusNotFound, "Project not found")
         } else {
-            utils.Failed(c, http.StatusInternalServerError, "DB error")
+            c.Error(err)
         }
         return
     }
@@ -314,7 +314,7 @@ func AssignProjectManager(c *gin.Context) {
     )
     if err != nil {
         log.Println("Assigning Problem : ", err)
-        utils.Failed(c, http.StatusInternalServerError, "Assignment failed")
+        c.Error(err)
         return
     }
 
@@ -384,7 +384,7 @@ func GetProjectsByAdmin(c *gin.Context) {
 		var progress int
 
 		if err := rows.Scan(&projectID, &name, &description, &pmID, &status, &deadline, &progress, &adminName); err != nil {
-			utils.Failed(c, http.StatusInternalServerError, "Scan error")
+			c.Error(err)
 			return
 		}
 
@@ -414,7 +414,7 @@ func GetProjectsByAdmin(c *gin.Context) {
 	).Scan(&total)
 
 	if err != nil {
-		utils.LogError(err)
+		c.Error(err)
 		return
 	}
 
@@ -459,8 +459,7 @@ func GetProjectTeamDetails(c *gin.Context) {
 
 	var total int
 	if err := config.DB.QueryRow(countQuery, search, searchLike, searchLike, searchLike, searchLike).Scan(&total); err != nil {
-		log.Println(err)
-		utils.Failed(c, 500, "Failed to count project details")
+		c.Error(err)
 		return
 	}
 
@@ -497,8 +496,7 @@ func GetProjectTeamDetails(c *gin.Context) {
 		limit, offset,
 	)
 	if err != nil {
-		log.Println(err)
-		utils.Failed(c, 500, "Failed to fetch project details")
+		c.Error(err)
 		return
 	}
 	defer rows.Close()
@@ -521,7 +519,7 @@ func GetProjectTeamDetails(c *gin.Context) {
 			&role,
 			&dept,
 		); err != nil {
-			utils.Failed(c, 500, "Error reading data")
+			c.Error(err)
 			return
 		}
 
@@ -572,7 +570,7 @@ func GetProjectsGroupedByManager(c *gin.Context) {
 
 	rows, err := config.DB.Query(query, managerID)
 	if err != nil {
-		utils.Failed(c, http.StatusInternalServerError, err.Error())
+		c.Error(err)
 		return
 	}
 	defer rows.Close()
@@ -597,7 +595,7 @@ func GetProjectsGroupedByManager(c *gin.Context) {
 			&tlID,
 			&tlName,
 		); err != nil {
-			utils.Failed(c, http.StatusInternalServerError, err.Error())
+			c.Error(err)
 			return
 		}
 
