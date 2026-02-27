@@ -3,14 +3,14 @@ package controllers
 import (
 	"backend/internal/config"
 	"backend/internal/utils"
-	"log"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
-//all done
+
+// all done
 func VerifyOtp(c *gin.Context) {
 	var req struct {
 		EmpID string `json:"empID"`
@@ -18,7 +18,6 @@ func VerifyOtp(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		log.Println("Bind error:", err)
 		utils.Failed(c, http.StatusBadRequest, "Invalid request")
 		return
 	}
@@ -35,8 +34,7 @@ func VerifyOtp(c *gin.Context) {
 	`, req.EmpID).Scan(&dbOTP, &expiry, &role, &email)
 
 	if err != nil {
-		log.Println("DB query error:", err)
-		utils.Failed(c, http.StatusUnauthorized, "Invalid empID or otp")
+		c.Error(err)
 		return
 	}
 
@@ -63,8 +61,7 @@ func VerifyOtp(c *gin.Context) {
 	`, req.EmpID)
 
 	if err != nil {
-		log.Println("OTP update error:", err)
-		utils.Failed(c, http.StatusInternalServerError, "OTP not updated")
+		c.Error(err)
 		return
 	}
 

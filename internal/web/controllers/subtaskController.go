@@ -7,7 +7,6 @@ import (
 	"backend/internal/web/models"
 	"database/sql"
 	"fmt"
-	"log"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -35,7 +34,7 @@ func CreateSubTask(c *gin.Context) {
 	)
 
 	if err != nil {
-		utils.Failed(c, 500, err.Error())
+		c.Error(err)
 		return
 	}
 
@@ -65,7 +64,6 @@ func UpdateSubTaskStatus(c *gin.Context) {
 	idParam := c.Param("id")
 	subTaskID, err := strconv.Atoi(idParam)
 	if err != nil {
-		log.Println("UpdateSubTaskStatus invalid id:", err)
 		utils.Failed(c, 400, "Invalid subtask ID")
 		return
 	}
@@ -75,7 +73,6 @@ func UpdateSubTaskStatus(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		log.Println("UpdateSubTaskStatus bind error:", err)
 		utils.Failed(c, 400, "Invalid status input")
 		return
 	}
@@ -88,8 +85,7 @@ func UpdateSubTaskStatus(c *gin.Context) {
 		subTaskID,
 	)
 	if err != nil {
-		log.Println("UpdateSubTaskStatus DB error:", err)
-		utils.Failed(c, 500, "Database error")
+		c.Error(err)
 		return
 	}
 
@@ -101,8 +97,7 @@ func UpdateSubTaskStatus(c *gin.Context) {
 	// }
 
 	if err := services.UpdateProgressFromSubTask(subTaskID); err != nil {
-		log.Println("Progress update error:", err)
-		utils.Failed(c, 500, "Progress recalculation failed")
+		c.Error(err)
 		return
 	}
 
@@ -113,7 +108,6 @@ func DeleteSubTask(c *gin.Context) {
 	idParam := c.Param("id")
 	subTaskID, err := strconv.Atoi(idParam)
 	if err != nil {
-		log.Println("DeleteSubTask invalid id:", err)
 		utils.Failed(c, 400, "Invalid subtask ID")
 		return
 	}
@@ -126,8 +120,7 @@ func DeleteSubTask(c *gin.Context) {
 	)
 
 	if err != nil {
-		log.Println("DeleteSubTask DB error:", err)
-		utils.Failed(c, 500, "Database error")
+		c.Error(err)
 		return
 	}
 
@@ -138,8 +131,7 @@ func DeleteSubTask(c *gin.Context) {
 	}
 
 	if err := services.UpdateProgressFromSubTask(subTaskID); err != nil {
-		log.Println("DeleteSubTask progress error:", err)
-		utils.Failed(c, 500, "Progress recalculation failed")
+		c.Error(err)
 		return
 	}
 
@@ -150,7 +142,6 @@ func GetSubTasksByTask(c *gin.Context) {
 	taskIDParam := c.Param("task_id")
 	taskID, err := strconv.Atoi(taskIDParam)
 	if err != nil {
-		log.Println("GetSubTasksByTask invalid id:", err)
 		utils.Failed(c, 400, "Invalid task ID")
 		return
 	}
@@ -173,8 +164,7 @@ func GetSubTasksByTask(c *gin.Context) {
 	)
 
 	if err != nil {
-		log.Println("GetSubTasksByTask DB error:", err)
-		utils.Failed(c, 500, "Database error")
+		c.Error(err)
 		return
 	}
 	defer rows.Close()
@@ -198,8 +188,7 @@ func GetSubTasksByTask(c *gin.Context) {
 		)
 
 		if err != nil {
-			log.Println("GetSubTasksByTask scan error:", err)
-			utils.Failed(c, 500, "Data processing error")
+			c.Error(err)
 			return
 		}
 
@@ -248,8 +237,7 @@ func GetTeamMembersWithSubTasks(c *gin.Context) {
 
 	rows, err := config.DB.Query(query, args...)
 	if err != nil {
-		log.Println("GetTeamMembersWithSubTasks DB error:", err)
-		utils.Failed(c, 500, "Database error")
+		c.Error(err)
 		return
 	}
 	defer rows.Close()
@@ -274,8 +262,7 @@ func GetTeamMembersWithSubTasks(c *gin.Context) {
 			&taskID,
 		)
 		if err != nil {
-			log.Println("Scan error:", err)
-			utils.Failed(c, 500, "Data processing error")
+			c.Error(err)
 			return
 		}
 

@@ -13,7 +13,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
-//all check
+
+// all check
 func CreateTask(c *gin.Context) {
 
 	var input struct {
@@ -27,7 +28,7 @@ func CreateTask(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		utils.Failed(c, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
 
@@ -36,7 +37,7 @@ func CreateTask(c *gin.Context) {
 
 		t, err := time.Parse(time.RFC3339, input.Deadline)
 		if err != nil {
-			c.JSON(400, gin.H{"error": "Invalid deadline format. Use 2026-01-20T00:00:00Z"})
+			utils.Failed(c, http.StatusBadRequest, "Invalid deadline format. Use 2026-01-20T00:00:00Z")
 			return
 		}
 		deadline = sql.NullString{String: t.Format("2006-01-02 15:04:05"), Valid: true}
@@ -51,18 +52,18 @@ func CreateTask(c *gin.Context) {
 	`
 
 	_, err := config.DB.Exec(
-	query,
-	input.ProjectID,
-	input.TeamID,
-	input.Title,
-	input.Description,
-	input.AssignedTo,
-	input.CreatedBy,
-	deadline,
-)
+		query,
+		input.ProjectID,
+		input.TeamID,
+		input.Title,
+		input.Description,
+		input.AssignedTo,
+		input.CreatedBy,
+		deadline,
+	)
 
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
@@ -131,7 +132,7 @@ AND (
 
 	rows, err := config.DB.Query(query, args...)
 	if err != nil {
-		utils.Failed(c, http.StatusInternalServerError, "Fetch failed")
+		c.Error(err)
 		return
 	}
 	defer rows.Close()
@@ -146,21 +147,20 @@ AND (
 
 		err := rows.Scan(
 			&id,
-			&project_id,     
-			&projectName,    
-			&teamID,         
-			&createdBy,      
-			&title,          
-			&status,         
-			&assignedTo,     
-			&teamLeaderID,   
+			&project_id,
+			&projectName,
+			&teamID,
+			&createdBy,
+			&title,
+			&status,
+			&assignedTo,
+			&teamLeaderID,
 			&teamLeaderName,
-			&department,     
-			&deadline,       
+			&department,
+			&deadline,
 		)
 		if err != nil {
-			log.Println("GetTasksByProject Scan error:", err)
-			utils.Failed(c, http.StatusInternalServerError, "Scan failed")
+			c.Error(err)
 			return
 		}
 
@@ -195,10 +195,10 @@ func GetTasksByUser(c *gin.Context) {
 	SELECT task_id, task_title, task_status, project_id
 	FROM task_master
 	WHERE assigned_to_employee_id = ?
-`, empID)
+	`, empID)
 
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 	defer rows.Close()
@@ -209,7 +209,11 @@ func GetTasksByUser(c *gin.Context) {
 		var id int
 		var title, status, projectID string
 
-		rows.Scan(&id, &title, &status, &projectID)
+		err = rows.Scan(&id, &title, &status, &projectID)
+		if err != nil {
+			c.Error(err)
+			return
+		}
 
 		tasks = append(tasks, gin.H{
 			"id":         id,
@@ -247,12 +251,12 @@ func UpdateTaskStatus(c *gin.Context) {
 		SET task_status = ?
 		WHERE task_id = ?
 	`, input.Status, taskID)
-	row,err := result.RowsAffected()
+	row, err := result.RowsAffected()
 
-	if row==0{
+	if row == 0 {
 	}
 	if err != nil {
-		utils.Failed(c, http.StatusInternalServerError, err.Error())
+		c.Error(err)
 		return
 	}
 
@@ -311,7 +315,6 @@ func UpdateTask(c *gin.Context) {
 		args = append(args, *input.Deadline)
 	}
 
-
 	if len(args) == 0 {
 		utils.Failed(c, http.StatusBadRequest, "No valid fields to update")
 		return
@@ -321,7 +324,7 @@ func UpdateTask(c *gin.Context) {
 
 	_, err := config.DB.Exec(query, args...)
 	if err != nil {
-		utils.Failed(c, http.StatusInternalServerError, err.Error())
+		c.Error(err)
 		return
 	}
 
@@ -337,11 +340,11 @@ func DeleteTask(c *gin.Context) {
 `, taskID)
 
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		c.Error(err)
 		return
 	}
 
-	c.JSON(200, gin.H{"message": "Task deleted successfully"})
+	utils.Success(c, gin.H{"message": "Task deleted successfully"})
 }
 
 func GetTasksWithDetails(c *gin.Context) {
@@ -367,8 +370,7 @@ func GetTasksWithDetails(c *gin.Context) {
 `)
 
 	if err != nil {
-		log.Println("Query error:", err)
-		utils.Failed(c, http.StatusInternalServerError, "Failed to fetch tasks")
+		c.Error(err)
 		return
 	}
 	defer rows.Close()
