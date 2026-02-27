@@ -12,3 +12,8 @@ type Query struct {
 	Priority    string  `json:"priority"`
 	Status      string  `json:"status"`
 }
+
+type UpdateQuery struct {
+		Status     *string `json:"status"`
+		AssignedTo *string `json:"assigned_to"`
+	}

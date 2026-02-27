@@ -6,11 +6,10 @@ import (
 	"backend/internal/web/models"
 	"database/sql"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
-//ALL CHECK
+
 func CreateQuery(c *gin.Context) {
 	var q models.Query
 
@@ -20,10 +19,10 @@ func CreateQuery(c *gin.Context) {
 	}
 
 	query := `
-		INSERT INTO query_master
-		(project_id, task_id, raised_by_employee_id, assigned_to_employee_id,
-		query_title, query_description, query_priority, query_status)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	INSERT INTO query_master
+	(project_id, task_id, raised_by_employee_id, assigned_to_employee_id,
+	query_title, query_description, query_priority, query_status)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	_, err := config.DB.Exec(
@@ -37,9 +36,8 @@ func CreateQuery(c *gin.Context) {
 		q.Priority,
 		q.Status,
 	)
-
 	if err != nil {
-		c.Error(err)
+		utils.Failed(c, http.StatusInternalServerError, "Failed to create query")
 		return
 	}
 
@@ -57,56 +55,43 @@ func GetAllQueries(c *gin.Context) {
 		query_title,
 		query_description,
 		query_priority,
-		query_status,
-		created_at,
-		updated_at
+		query_status
 	FROM query_master
 	WHERE deleted_at IS NULL
 	`)
 	if err != nil {
-		c.Error(err)
+		utils.Failed(c, http.StatusInternalServerError, "Failed to fetch queries")
 		return
 	}
 	defer rows.Close()
 
-	var queries []map[string]interface{}
+	var queries []models.Query
 
 	for rows.Next() {
-		var id int
+		var q models.Query
 		var projectID, assignedTo sql.NullString
 		var taskID sql.NullInt64
-		var raisedBy, title, description, priority, status string
-		var createdAt, updatedAt time.Time
 
 		err := rows.Scan(
-			&id, &projectID, &taskID, &raisedBy,
-			&assignedTo, &title, &description,
-			&priority, &status, &createdAt, &updatedAt,
+			&q.ID, &projectID, &taskID,
+			&q.RaisedBy, &assignedTo,
+			&q.Title, &q.Description,
+			&q.Priority, &q.Status,
 		)
 		if err != nil {
-			c.Error(err)
+			utils.Failed(c, http.StatusInternalServerError, "Error scanning query row")
 			return
 		}
 
-		q := map[string]interface{}{
-			"id":          id,
-			"raised_by":   raisedBy,
-			"title":       title,
-			"description": description,
-			"priority":    priority,
-			"status":      status,
-			"created_at":  createdAt,
-			"updated_at":  updatedAt,
-		}
-
 		if projectID.Valid {
-			q["project_id"] = projectID.String
+			q.ProjectID = &projectID.String
 		}
 		if taskID.Valid {
-			q["task_id"] = taskID.Int64
+			t := int(taskID.Int64)
+			q.TaskID = &t
 		}
 		if assignedTo.Valid {
-			q["assigned_to"] = assignedTo.String
+			q.AssignedTo = &assignedTo.String
 		}
 
 		queries = append(queries, q)
@@ -116,56 +101,83 @@ func GetAllQueries(c *gin.Context) {
 }
 
 func GetQueriesByProject(c *gin.Context) {
-	projectID := c.Param("project_id")
+	projectIDParam := c.Param("project_id")
 
 	rows, err := config.DB.Query(`
 	SELECT 
 		query_id,
+		project_id,
+		task_id,
+		raised_by_employee_id,
+		assigned_to_employee_id,
 		query_title,
-		query_status,
-		query_priority
+		query_description,
+		query_priority,
+		query_status
 	FROM query_master
 	WHERE project_id = ? AND deleted_at IS NULL
-	`, projectID)
-
+	`, projectIDParam)
 	if err != nil {
-		c.Error(err)
+		utils.Failed(c, http.StatusInternalServerError, "Failed to fetch queries")
 		return
 	}
 	defer rows.Close()
 
-	var list []map[string]interface{}
+	var queries []models.Query
 
 	for rows.Next() {
-		var id int
-		var title, status, priority string
+		var q models.Query
+		var projectID, assignedTo, raisedBy sql.NullString
+		var taskID sql.NullInt64
+		var description sql.NullString 
 
-		if err := rows.Scan(&id, &title, &status, &priority); err != nil {
-			c.Error(err)
+		err := rows.Scan(
+			&q.ID,         
+			&projectID,   
+			&taskID,      
+			&raisedBy,    
+			&assignedTo,   
+			&q.Title,     
+			&description,  
+			&q.Priority,   
+			&q.Status,     
+		)
+		if err != nil {
+			utils.Failed(c, http.StatusInternalServerError, "Error scanning query row")
 			return
 		}
 
-		list = append(list, map[string]interface{}{
-			"id":       id,
-			"title":    title,
-			"status":   status,
-			"priority": priority,
-		})
+		if projectID.Valid {
+			q.ProjectID = &projectID.String
+		}
+		if taskID.Valid {
+			t := int(taskID.Int64)
+			q.TaskID = &t
+		}
+		if assignedTo.Valid {
+			q.AssignedTo = &assignedTo.String
+		}
+		if raisedBy.Valid {
+			q.RaisedBy = raisedBy.String
+		}
+		if description.Valid {
+			q.Description = description.String
+		}
+
+		queries = append(queries, q)
 	}
 
-	utils.Success(c, list)
+	utils.Success(c, queries)
 }
 
 func UpdateQuery(c *gin.Context) {
 	id := c.Param("id")
 
-	var payload struct {
-		Status     *string `json:"status"`
-		AssignedTo *string `json:"assigned_to"`
-	}
+	
+	var payload models.UpdateQuery
 
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		utils.Failed(c, 400, err.Error())
+		utils.Failed(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -177,7 +189,7 @@ func UpdateQuery(c *gin.Context) {
 	`, payload.Status, payload.AssignedTo, id)
 
 	if err != nil {
-		c.Error(err)
+		utils.Failed(c, http.StatusInternalServerError, "Failed to update query")
 		return
 	}
 
