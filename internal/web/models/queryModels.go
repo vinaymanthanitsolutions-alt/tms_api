@@ -1,6 +1,5 @@
 package models
 
-
 type Query struct {
 	ID          int     `json:"id"`
 	ProjectID   *string `json:"project_id"`
@@ -14,6 +13,6 @@ type Query struct {
 }
 
 type UpdateQuery struct {
-		Status     *string `json:"status"`
-		AssignedTo *string `json:"assigned_to"`
-	}
+	Status     *string `json:"status"`
+	AssignedTo *string `json:"assigned_to"`
+}

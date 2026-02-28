@@ -33,15 +33,15 @@ type AssignPMRequest struct {
 }
 
 type ProjectListResponse struct {
-	ProjectID      string     `json:"project_id"`
-	Name           string     `json:"name"`
-	Description    string     `json:"description"`
-	CreatedBy      string     `json:"created_by"`
-	PMID           string     `json:"pm_id"`
-	PMName         string     `json:"pm_name"`
-	Status         string     `json:"status"`
-	Progress       int        `json:"progress"`
-	Deadline       *time.Time `json:"deadline,omitempty"`
+	ProjectID   string     `json:"project_id"`
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	CreatedBy   string     `json:"created_by"`
+	PMID        string     `json:"pm_id"`
+	PMName      string     `json:"pm_name"`
+	Status      string     `json:"status"`
+	Progress    int        `json:"progress"`
+	Deadline    *time.Time `json:"deadline,omitempty"`
 }
 
 type ProjectByPMResponse struct {
