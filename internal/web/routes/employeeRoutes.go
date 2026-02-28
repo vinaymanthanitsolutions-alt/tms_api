@@ -12,7 +12,4 @@ func Router(server *gin.Engine) {
 	server.DELETE("/emp/:emp_id",controllers.DeleteUser)  //by sarthak and divya
 	server.PUT("/emp/:emp_id",controllers.UpdateProfile)  //by sarthak and divya
 	server.PATCH("/empRestore/:emp_id",controllers.RestoreUser)
-	server.GET("/empCounts",controllers.GetEmployeeCounts)   // used divya
-	server.GET("/projectCounts",controllers.GetProjectCounts) // used vansh,by Divya
-	server.GET("/teamCounts",controllers.GetTeamCounts)  // used vansh
 }
