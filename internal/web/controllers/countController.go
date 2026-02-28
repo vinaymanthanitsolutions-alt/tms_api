@@ -15,7 +15,7 @@ func GetEmployeeCounts(c *gin.Context) {
 
 	var (
 		total, active, inactive, suspended int
-		err                                error
+		err error
 	)
 
 	if managerID != "" {
@@ -71,7 +71,7 @@ func GetProjectCounts(c *gin.Context) {
 
 	var (
 		total, planning, active, completed int
-		err                                error
+		err error
 	)
 
 	if pmID != "" {
@@ -125,7 +125,7 @@ func GetTeamCounts(c *gin.Context) {
 	adminID := c.Query("admin_id")
  
 	var	total int
-	var	err   error
+	var	err error
 
 	switch {
 	case projectID != "":

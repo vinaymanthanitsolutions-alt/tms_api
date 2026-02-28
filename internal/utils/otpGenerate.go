@@ -13,6 +13,7 @@ func GenerateOTP() (string, error) {
 		return "", err
 	}
 
-	otp := fmt.Sprintf("%04d", n.Int64())
+	otp := fmt.Sprintf("%04d", n.Int64())	
 	return otp, nil
 }
+
