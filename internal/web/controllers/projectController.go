@@ -16,7 +16,7 @@ import (
 )
 //ALL checked
 func CreateProject(c *gin.Context) {
-	var p models.Project
+	var p models.CreateProjectRequest
 
 	if err := c.ShouldBindJSON(&p); err != nil {
 		utils.Failed(c, http.StatusBadRequest, "Invalid request payload")
@@ -59,7 +59,7 @@ func CreateProject(c *gin.Context) {
 
 func UpdateProject(c *gin.Context) {
 	id := c.Param("project_id")
-	var p models.Project
+	var p models.UpdateProjectRequest
 
 	if err := c.ShouldBindJSON(&p); err != nil {
 		utils.Failed(c, http.StatusBadRequest, "Invalid request payload")
@@ -91,8 +91,12 @@ func DeleteProject(c *gin.Context) {
 }
 
 func GetProjectsByPM(c *gin.Context) {
-	// pmID := c.Get("emp_id")
+
 	pmID := c.Query("pm_id")
+	if pmID == "" {
+		utils.Failed(c, 400, "pm_id is required")
+		return
+	}
 
 	rows, err := config.DB.Query(`
 		SELECT project_id, project_title, project_status, project_deadline
@@ -104,28 +108,28 @@ func GetProjectsByPM(c *gin.Context) {
 	}
 	defer rows.Close()
 
-	projects := []map[string]interface{}{}
+	var projects []models.ProjectByPMResponse
+
 	for rows.Next() {
-		var id, name, status string
+
+		var p models.ProjectByPMResponse
 		var deadline sql.NullTime
 
-		if err := rows.Scan(&id, &name, &status, &deadline); err != nil {
+		if err := rows.Scan(
+			&p.ProjectID,
+			&p.Name,
+			&p.Status,
+			&deadline,
+		); err != nil {
 			c.Error(err)
 			return
 		}
 
-		project := map[string]interface{}{
-			"project_id": id,
-			"name":       name,
-			"status":     status,
-			"deadline":   nil,
-		}
-
 		if deadline.Valid {
-			project["deadline"] = deadline.Time.Format("2006-01-02 15:04:05")
+			p.Deadline = &deadline.Time
 		}
 
-		projects = append(projects, project)
+		projects = append(projects, p)
 	}
 
 	utils.Success(c, projects)
@@ -280,9 +284,7 @@ func GetAllProjects(c *gin.Context) {
 
 func AssignProjectManager(c *gin.Context) {
     projectID := c.Param("project_id")
-    var data struct {
-        PMID *string `json:"pm_id"`
-    }
+    var data models.AssignPMRequest
     if err := c.ShouldBindJSON(&data); err != nil {
         utils.Failed(c, http.StatusBadRequest, "Invalid data")
         return
@@ -599,7 +601,6 @@ func GetProjectsGroupedByManager(c *gin.Context) {
 			return
 		}
 
-		log.Println("project id", projectID)
 
 		// IF PROJECT NOT EXISTS , CREATE IT
 		if _, exists := projectMap[projectID]; !exists {
