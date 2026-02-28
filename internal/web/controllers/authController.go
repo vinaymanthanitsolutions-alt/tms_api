@@ -235,3 +235,4 @@ func UpdatePassword(c *gin.Context) {
 		"message": "Password updated successfully",
 	})
 }
+

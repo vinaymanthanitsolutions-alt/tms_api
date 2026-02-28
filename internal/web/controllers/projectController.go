@@ -79,11 +79,29 @@ func UpdateProject(c *gin.Context) {
 
 	utils.Success(c, "Project updated successfully")
 }
-func DeleteProject(c *gin.Context) {
-	id := c.Param("project_id")
 
-	if _, err := config.DB.Exec("DELETE FROM project_master WHERE project_id=?", id); err != nil {
+func DeleteProject(c *gin.Context) {
+
+	id := c.Param("project_id")
+	if id == "" {
+		utils.Failed(c, 400, "project_id is required")
+		return
+	}
+
+	result, err := config.DB.Exec(`
+		UPDATE project_master
+		SET deleted_at = NOW()
+		WHERE project_id = ? AND deleted_at IS NULL
+	`, id)
+
+	if err != nil {
 		c.Error(err)
+		return
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		utils.Failed(c, 404, "Project not found or already deleted")
 		return
 	}
 
