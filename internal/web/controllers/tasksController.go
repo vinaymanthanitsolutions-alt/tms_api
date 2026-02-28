@@ -17,15 +17,7 @@ import (
 // all check
 func CreateTask(c *gin.Context) {
 
-	var input struct {
-		ProjectID   string `json:"project_id" binding:"required"`
-		TeamID      string `json:"team_id" binding:"required"`
-		Title       string `json:"title" binding:"required"`
-		Description string `json:"description"`
-		AssignedTo  string `json:"assigned_to" binding:"required"`
-		CreatedBy   string `json:"created_by" binding:"required"`
-		Deadline    string `json:"deadline"`
-	}
+	var input models.CreateTaskRequest
 
 	if err := c.ShouldBindJSON(&input); err != nil {
 		utils.Failed(c, http.StatusBadRequest, "Invalid request payload")
@@ -67,7 +59,7 @@ func CreateTask(c *gin.Context) {
 		return
 	}
 
-	c.JSON(201, gin.H{"message": "Task created successfully"})
+	utils.Success(c, "Task created successfully")
 }
 
 func GetTasksByProject(c *gin.Context) {
@@ -91,38 +83,38 @@ func GetTasksByProject(c *gin.Context) {
 	offset := (page - 1) * limit
 
 	query := `
-	SELECT 
-	t.task_id,
-	t.project_id,
-	p.project_title AS project_name,
-	t.team_id,
-	t.created_by_employee_id,
-	t.task_title,
-	t.task_status,
-	t.assigned_to_employee_id,
-	tl.employee_id AS tl_id,
-	tl.employee_name AS tl_name,
-	tl.employee_department,
-	t.task_deadline
-FROM task_master t
-JOIN project_master p 
-	ON t.project_id = p.project_id
-LEFT JOIN team_master tm 
-	ON t.team_id = tm.team_id
-LEFT JOIN employee_master tl 
-	ON tm.team_leader_employee_id = tl.employee_id
-WHERE t.project_id = ?
+		SELECT 
+		t.task_id,
+		t.project_id,
+		p.project_title AS project_name,
+		t.team_id,
+		t.created_by_employee_id,
+		t.task_title,
+		t.task_status,
+		t.assigned_to_employee_id,
+		tl.employee_id AS tl_id,
+		tl.employee_name AS tl_name,
+		tl.employee_department,
+		t.task_deadline
+		FROM task_master t
+		JOIN project_master p 
+		ON t.project_id = p.project_id
+		LEFT JOIN team_master tm 
+		ON t.team_id = tm.team_id
+		LEFT JOIN employee_master tl 
+		ON tm.team_leader_employee_id = tl.employee_id
+		WHERE t.project_id = ?
 	`
 
 	args := []interface{}{projectID}
 
 	if search != "" {
 		query += `
-AND (
-	t.task_title LIKE ?
-	OR t.task_status LIKE ?
-	OR e.employee_name LIKE ?
-)`
+	AND (
+		t.task_title LIKE ?
+		OR t.task_status LIKE ?
+		OR e.employee_name LIKE ?
+	)`
 		searchPattern := "%" + search + "%"
 		args = append(args, searchPattern, searchPattern, searchPattern)
 	}
@@ -236,9 +228,7 @@ func UpdateTaskStatus(c *gin.Context) {
 		return
 	}
 
-	var input struct {
-		Status string `json:"status" binding:"required"`
-	}
+	var input models.UpdateTaskStatusRequest
 
 	if err := c.ShouldBindJSON(&input); err != nil {
 		utils.Failed(c, http.StatusBadRequest, err.Error())
@@ -280,12 +270,7 @@ func UpdateTask(c *gin.Context) {
 
 	taskID := c.Param("id")
 
-	var input struct {
-		Title       *string `json:"title"`
-		Description *string `json:"description"`
-		AssignedTo  *string `json:"assigned_to"`
-		Deadline    *string `json:"deadline"`
-	}
+	var input models.UpdateTaskRequest
 
 	if err := c.ShouldBindJSON(&input); err != nil {
 		utils.Failed(c, http.StatusBadRequest, err.Error())
