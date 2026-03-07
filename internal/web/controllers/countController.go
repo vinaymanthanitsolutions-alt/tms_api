@@ -12,7 +12,14 @@ import (
 // all checked
 func GetEmployeeCounts(c *gin.Context) {
 
-	managerID := c.Query("manager_id")
+	var managerID string
+
+	empID, exists := c.Get("emp_id")
+	if exists {
+		managerID = empID.(string)
+	} else {
+		managerID = c.Query("manager_id")
+	}
 
 	var response models.EmployeeCountsResponse
 	var err error
@@ -69,11 +76,11 @@ func GetProjectCounts(c *gin.Context) {
 		query += " WHERE project_manager_id = ?"
 		err = config.DB.QueryRow(query, pmID).
 			Scan(&response.TotalProjects, &response.Planning, &response.Active, &response.Completed)
-	} else if adminID !="" {
+	} else if adminID != "" {
 		query += " WHERE project_created_by = ?"
 		err = config.DB.QueryRow(query, adminID).
 			Scan(&response.TotalProjects, &response.Planning, &response.Active, &response.Completed)
-	}else {
+	} else {
 		err = config.DB.QueryRow(query).
 			Scan(&response.TotalProjects, &response.Planning, &response.Active, &response.Completed)
 	}

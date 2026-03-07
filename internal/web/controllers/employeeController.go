@@ -347,7 +347,9 @@ func UpdateProfile(c *gin.Context) {
 func GetEmployeesUnderSameManager(c *gin.Context) {
 
 	empID := c.Query("emp_id")
+	// empID, _ := c.Get("emp_id")
 	userRole := c.Query("role")
+	// userRole,_ := c.Get("role")
 	filterRole := c.Query("filter_role")
 
 	if empID == "" || userRole == "" {
@@ -420,6 +422,7 @@ func GetEmployeesUnderSameManager(c *gin.Context) {
 func GetEmployeesUnderSameManagert(c *gin.Context) {
 
 	empID := c.Query("emp_id")
+	// empID,  _ := c.Get("emp_id")
 	filterRole := c.Query("filter_role")
 
 	if empID == "" {
