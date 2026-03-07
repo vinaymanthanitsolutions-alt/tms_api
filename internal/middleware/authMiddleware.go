@@ -4,11 +4,12 @@ import (
 	"net/http"
 	"strings"
 
+	"backend/internal/utils"
+	"backend/internal/web/models"
+
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"backend/internal/utils"
 )
-
 
 func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -58,8 +59,7 @@ func Auth() gin.HandlerFunc {
 	}
 }
 
-
-func RequireRole(allowedRoles ...string) gin.HandlerFunc {
+func RequireMinRole(minRole string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 
 		roleInterface, exists := c.Get("role")
@@ -68,19 +68,21 @@ func RequireRole(allowedRoles ...string) gin.HandlerFunc {
 			return
 		}
 
-		userRole, ok := roleInterface.(string)
-		if !ok {
-			utils.Abort(c, http.StatusUnauthorized, "Invalid role type")
+		userRole := roleInterface.(string)
+
+		userLevel, ok1 := models.RoleHierarchy[userRole]
+		requiredLevel, ok2 := models.RoleHierarchy[minRole]
+
+		if !ok1 || !ok2 {
+			utils.Abort(c, http.StatusForbidden, "Invalid role")
 			return
 		}
 
-		for _, r := range allowedRoles {
-			if userRole == r {
-				c.Next()
-				return
-			}
+		if userLevel > requiredLevel {
+			utils.Abort(c, http.StatusForbidden, "Access denied")
+			return
 		}
 
-		utils.Abort(c, http.StatusForbidden, "Access denied: insufficient permissions")
+		c.Next()
 	}
 }
