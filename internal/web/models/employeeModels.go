@@ -8,20 +8,20 @@ type UserGet struct {
 	Password   string `json:"password" binding:"required"`
 	Department string `json:"department"`
 	Role       string `json:"role" binding:"required"`
-	ManagerID    string  `json:"manager_id"`
+	ManagerID  string `json:"manager_id"`
 }
 
 type UserShow struct {
-    EmpID       string `json:"emp_id" binding:"required"`
-    EmpName     string `json:"emp_name" binding:"required"`
-    Email       string `json:"email" binding:"required"`
-    Phone       string `json:"phone"`
-    Password    string `json:"password" binding:"required"`
-    Department  string `json:"department"`
-    Role        string `json:"role" binding:"required"`
-    Status      string `json:"status"`
-    ManagerID   *string `json:"manager_id,omitempty"`   // OMITEMPTY SKIPS FEILD LIKE WHEN MANAGER IS NULL (SUPER_ADMIN)
-    ManagerName *string `json:"manager_name,omitempty"` 
+	EmpID       string  `json:"emp_id" binding:"required"`
+	EmpName     string  `json:"emp_name" binding:"required"`
+	Email       string  `json:"email" binding:"required"`
+	Phone       string  `json:"phone"`
+	Password    string  `json:"password" binding:"required"`
+	Department  string  `json:"department"`
+	Role        string  `json:"role" binding:"required"`
+	Status      string  `json:"status"`
+	ManagerID   *string `json:"manager_id,omitempty"` // OMITEMPTY SKIPS FEILD LIKE WHEN MANAGER IS NULL (SUPER_ADMIN)
+	ManagerName *string `json:"manager_name,omitempty"`
 }
 
 type UserUpdate struct {
@@ -32,9 +32,8 @@ type UserUpdate struct {
 	Department string `json:"department"`
 	Role       string `json:"role"`
 	ManagerID  string `json:"manager_id"`
-	Status  string `json:"status"`
+	Status     string `json:"status"`
 }
-
 
 type TeamLeader struct {
 	TeamLeaderID   string `json:"team_leader_id"`
@@ -42,11 +41,11 @@ type TeamLeader struct {
 }
 
 type ProjectWithTL struct {
-	ProjectID    string       `json:"project_id"`
-	ProjectName  string       `json:"project_name"`
-	Status       string       `json:"status"`
-	Deadline     *string       `json:"deadline"`
-	TeamLeaders  []TeamLeader `json:"team_leaders"`
+	ProjectID   string       `json:"project_id"`
+	ProjectName string       `json:"project_name"`
+	Status      string       `json:"status"`
+	Deadline    *string      `json:"deadline"`
+	TeamLeaders []TeamLeader `json:"team_leaders"`
 }
 
 type EmployeeUnderManager struct {

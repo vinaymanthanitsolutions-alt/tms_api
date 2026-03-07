@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"backend/internal/config"
 	"backend/internal/utils"
@@ -249,12 +250,12 @@ func RestoreUser(c *gin.Context) {
 	}
 
 	rowsAffected, err := result.RowsAffected()
-	if err!=nil {
+	if err != nil {
 		c.Error(err)
 		return
 	} else if rowsAffected == 0 {
 		utils.Failed(c, http.StatusNotFound, "User already active ")
-		return 
+		return
 	}
 
 	utils.Success(c, "User restored successfully")
@@ -263,9 +264,12 @@ func RestoreUser(c *gin.Context) {
 func UpdateProfile(c *gin.Context) {
 
 	empID := c.Param("emp_id")
+	if empID == "" {
+		utils.Failed(c, http.StatusBadRequest, "emp_id is required")
+		return
+	}
 
 	var data models.UserUpdate
-
 	if err := c.ShouldBindJSON(&data); err != nil {
 		utils.Failed(c, http.StatusBadRequest, "Invalid request format")
 		return
@@ -278,11 +282,41 @@ func UpdateProfile(c *gin.Context) {
 	).Scan(&exists)
 
 	if err != nil {
-		c.Error(err)
+		utils.Failed(c, http.StatusNotFound, "Employee not found")
 		return
 	}
 
-	var hashedPassword string
+	query := "UPDATE employee_master SET "
+	var updates []string
+	var args []interface{}
+
+	updates = append(updates,
+		"employee_name = ?",
+		"employee_email = ?",
+		"employee_phone = ?",
+		"employee_department = ?",
+		"employee_role = ?",
+		"manager_employee_id = ?",
+		"employee_status = ?",
+	)
+
+	args = append(args,
+		data.EmpName,
+		data.Email,
+		data.Phone,
+		data.Department,
+		data.Role,
+		data.ManagerID,
+		data.Status,
+	)
+
+	if data.Status == "SUSPENDED" {
+		updates = append(updates, "deleted_at = ?")
+		args = append(args, time.Now())
+	} else {
+		updates = append(updates, "deleted_at = NULL")
+	}
+
 	if data.Password != "" {
 		hash, err := bcrypt.GenerateFromPassword(
 			[]byte(data.Password),
@@ -292,74 +326,103 @@ func UpdateProfile(c *gin.Context) {
 			utils.Failed(c, http.StatusInternalServerError, "Error hashing password")
 			return
 		}
-		hashedPassword = string(hash)
+
+		updates = append(updates, "employee_password = ?")
+		args = append(args, string(hash))
 	}
 
-	if data.Password != "" {
+	query += strings.Join(updates, ", ") + " WHERE employee_id = ?"
+	args = append(args, empID)
 
-		// UPDATE INCLUDING PASSWORD
-		_, err = config.DB.Exec(`
-			UPDATE employee_master SET
-				employee_name = ?,
-				employee_email = ?,
-				employee_phone = ?,
-				employee_department = ?,
-				employee_role = ?,
-				manager_employee_id = ?,
-				employee_password = ?,
-				employee_status = ?
-			WHERE employee_id = ?
-		`,
-			data.EmpName,
-			data.Email,
-			data.Phone,
-			data.Department,
-			data.Role,
-			data.ManagerID,
-			hashedPassword,
-			data.Status,
-			empID,
-		)
-
-	} else {
-
-		// UPDATE WITHOUT PASSWORD
-		_, err = config.DB.Exec(`
-			UPDATE employee_master SET
-				employee_name = ?,
-				employee_email = ?,
-				employee_phone = ?,
-				employee_department = ?,
-				employee_role = ?,
-				manager_employee_id = ?,
-				employee_status = ?
-			WHERE employee_id = ?
-		`,
-			data.EmpName,
-			data.Email,
-			data.Phone,
-			data.Department,
-			data.Role,
-			data.ManagerID,
-			data.Status,
-			empID,
-		)
-	}
-
+	_, err = config.DB.Exec(query, args...)
 	if err != nil {
 		utils.LogError(err)
 		c.Error(err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Profile updated successfully",
-	})
+	utils.Success(c, "Profile updated successfully")
 }
 
 func GetEmployeesUnderSameManager(c *gin.Context) {
 
 	empID := c.Query("emp_id")
+	// empID, _ := c.Get("emp_id")
+	userRole := c.Query("role")
+	// userRole,_ := c.Get("role")
+	filterRole := c.Query("filter_role")
+
+	if empID == "" || userRole == "" {
+		utils.Failed(c, http.StatusBadRequest, "emp_id and role are required")
+		return
+	}
+
+	baseQuery := `
+		SELECT 
+			e.employee_id,
+			e.employee_name,
+			e.employee_role
+		FROM employee_master e
+		WHERE 1=1
+	`
+
+	var args []interface{}
+
+	switch userRole {
+
+	case "SUPER_ADMIN":
+
+	case "ADMIN":
+		baseQuery += " AND e.manager_employee_id = ?"
+		args = append(args, empID)
+
+	case "PM":
+		baseQuery += " AND e.pm_employee_id = ?"
+		args = append(args, empID)
+
+	default:
+		utils.Failed(c, http.StatusForbidden, "invalid role")
+		return
+	}
+
+	if filterRole != "" && filterRole != "ALL" {
+		baseQuery += " AND e.employee_role = ?"
+		args = append(args, filterRole)
+	}
+
+	rows, err := config.DB.Query(baseQuery, args...)
+	if err != nil {
+		utils.Failed(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	var employees []models.EmployeeUnderManager
+
+	for rows.Next() {
+		var emp models.EmployeeUnderManager
+		if err := rows.Scan(
+			&emp.EmpID,
+			&emp.EmpName,
+			&emp.Role,
+		); err != nil {
+			utils.Failed(c, http.StatusInternalServerError, err.Error())
+			return
+		}
+		employees = append(employees, emp)
+	}
+
+	if err = rows.Err(); err != nil {
+		utils.Failed(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	utils.Success(c, employees)
+}
+func GetEmployeesUnderSameManagert(c *gin.Context) {
+
+	empID := c.Query("emp_id")
+	// empID,  _ := c.Get("emp_id")
 	filterRole := c.Query("filter_role")
 
 	if empID == "" {

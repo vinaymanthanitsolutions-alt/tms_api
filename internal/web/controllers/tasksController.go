@@ -182,6 +182,7 @@ func GetTasksByProject(c *gin.Context) {
 func GetTasksByUser(c *gin.Context) {
 
 	empID := c.Param("emp_id")
+	// empID,  _ := c.Get("emp_id")
 
 	rows, err := config.DB.Query(`
 	SELECT task_id, task_title, task_status, project_id
