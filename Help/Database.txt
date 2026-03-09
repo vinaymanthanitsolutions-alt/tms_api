@@ -1,21 +1,22 @@
 SUPER_ADMIN
    │
    └── ADMIN
-          │
-          └── PROJECT_MANAGER
-                 │
-                 ├── TEAM_LEADER
-                 │       │
-                 │       ├── DEVELOPER
-                 │       └── TESTER
-                 │
-                 └── creates TASK
-                          │
-                          └── TEAM_LEADER creates SUBTASK
-                                   │
-                                   ├── DEVELOPER updates
-                                   ├── TESTER updates
-                                   └── raises QUERY
+   |       │
+   |       └── PROJECT_MANAGER
+   |              │
+   |
+   |              ├── TEAM_LEADER
+   |              │       │
+   |             │       ├── DEVELOPER
+   |             │       └── TESTER
+   |                       │
+   |                       └── TEAM_LEADER creates SUBTASK
+   |                                │
+   |
+   |                                ├── DEVELOPER updates
+   |                                ├── TESTER updates
+   |                                └── raises QUERY
+   |___________activity_log_master
 
  CREATE DATABASE enterprise_task_management;
  use enterprise_task_management;
@@ -329,4 +330,46 @@ CREATE TABLE query_master (
         ON UPDATE CASCADE
         ON DELETE SET NULL
 
+);
+
+
+CREATE TABLE activity_log_master (
+
+    log_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+
+    employee_id VARCHAR(20) NOT NULL,
+
+    action_type ENUM(
+        'CREATE',
+        'UPDATE',
+        'DELETE',
+        'STATUS_CHANGE',
+        'ASSIGN',
+        'LOGIN',
+        'LOGOUT'
+    ) NOT NULL,
+
+    entity_type ENUM(
+        'EMPLOYEE',
+        'PROJECT',
+        'TEAM',
+        'TASK',
+        'SUB_TASK',
+        'QUERY'
+    ) NOT NULL,
+
+    entity_id VARCHAR(50),
+
+    old_data JSON NULL,
+    new_data JSON NULL,
+
+    description TEXT,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_activity_employee
+        FOREIGN KEY (employee_id)
+        REFERENCES employee_master(employee_id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
 );
