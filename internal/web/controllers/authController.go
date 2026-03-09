@@ -198,6 +198,11 @@ func UpdatePassword(c *gin.Context) {
 
 	if time.Now().After(expiry) {
 		utils.Failed(c, http.StatusUnauthorized, "OTP expired")
+		config.DB.Exec(`
+			UPDATE employee_master
+			SET employee_otp = NULL, otp_expire_at = NULL
+			WHERE employee_email = ?
+		`, input.Email)
 		return
 	}
 
@@ -266,6 +271,11 @@ func VerifyOtp(c *gin.Context) {
 
 	if time.Now().After(expiry) {
 		utils.Failed(c, http.StatusUnauthorized, "OTP expired")
+		config.DB.Exec(`
+			UPDATE employee_master
+			SET employee_otp = NULL, otp_expire_at = NULL
+			WHERE employee_id = ?
+		`, req.EmpID)
 		return
 	}
 

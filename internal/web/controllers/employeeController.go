@@ -419,6 +419,7 @@ func GetEmployeesUnderSameManager(c *gin.Context) {
 
 	utils.Success(c, employees)
 }
+
 func GetEmployeesUnderSameManagert(c *gin.Context) {
 
 	empID := c.Query("emp_id")
