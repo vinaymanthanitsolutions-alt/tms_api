@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"backend/internal/config"
+	"backend/internal/utils"
 	"backend/internal/web/models"
 
 	"github.com/gin-gonic/gin"
@@ -19,7 +20,7 @@ func GetActivityLogs(c *gin.Context) {
 	al.entity_id,
 	al.description,
 	al.created_at
-	FROM activity_log al
+	FROM activity_log_master al
 	JOIN employee_master e
 	ON al.employee_id = e.employee_id
 	ORDER BY al.created_at DESC
@@ -27,7 +28,7 @@ func GetActivityLogs(c *gin.Context) {
 	`)
 
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to fetch logs"})
+		c.Error(err)
 		return
 	}
 
@@ -58,5 +59,8 @@ func GetActivityLogs(c *gin.Context) {
 		logs = append(logs, log)
 	}
 
-	c.JSON(200, logs)
+	utils.Success(c,gin.H{
+		"message":"Activity created succesfully",
+		"data": logs,
+	})
 }
