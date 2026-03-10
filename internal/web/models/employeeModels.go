@@ -53,3 +53,11 @@ type EmployeeUnderManager struct {
 	EmpName string `json:"emp_name"`
 	Role    string `json:"role"`
 }
+
+type LatestEmployee struct {
+	EmpID string `json:"emp_id"`
+	EmpName string `json:"emp_name"`
+	EmpRole string `json:"emp_role"`
+	EmpDepartment string `json:"emp_department"`
+	CreatedAt *string `json:"created_at"`
+}

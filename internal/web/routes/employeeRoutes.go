@@ -12,4 +12,5 @@ func Router(server *gin.Engine) {
 	server.DELETE("/emp/:emp_id",controllers.DeleteUser)  //by sarthak and divya
 	server.PUT("/emp/:emp_id",controllers.UpdateProfile)  //by sarthak and divya
 	server.PATCH("/empRestore/:emp_id",controllers.RestoreUser)
+	server.GET("/latestEmp",controllers.GetLatestEmployee) // using by divya
 }

@@ -473,3 +473,82 @@ func GetEmployeesUnderSameManagert(c *gin.Context) {
 
 	utils.Success(c, employees)
 }
+
+
+func GetLatestEmployee(c *gin.Context) {
+
+	role := c.Query("role")
+	if role == "" {
+		utils.Failed(c, http.StatusBadRequest, "role is required")
+		return
+	}
+
+	var condition string
+
+	switch role {
+	case "SUPER_ADMIN":
+		condition = "e.employee_role = ?"
+	case "ADMIN":
+		condition = "e.employee_role NOT IN (?,?)"
+	default:
+		utils.Failed(c, http.StatusBadRequest, "invalid role")
+		return
+	}
+
+	query := `
+	SELECT
+		e.employee_id,
+		e.employee_name,
+		e.employee_role,
+		e.employee_department,
+		e.created_at
+	FROM employee_master e
+	WHERE ` + condition + `
+	ORDER BY e.created_at DESC
+	LIMIT 3
+	`
+
+	var rows *sql.Rows
+	var err error
+
+	if role == "SUPER_ADMIN" {
+		rows, err = config.DB.Query(query, "ADMIN")
+	} else {
+		rows, err = config.DB.Query(query, "ADMIN", "SUPER_ADMIN")
+	}
+
+	if err != nil {
+		utils.Failed(c, http.StatusInternalServerError, "database error")
+		return
+	}
+	defer rows.Close()
+
+	var employees []models.LatestEmployee
+
+	for rows.Next() {
+
+		var emp models.LatestEmployee
+
+		err := rows.Scan(
+			&emp.EmpID,
+			&emp.EmpName,
+			&emp.EmpRole,
+			&emp.EmpDepartment,
+			&emp.CreatedAt,
+		)
+
+		if err != nil {
+			c.Error(err)
+			continue
+		}
+
+		employees = append(employees, emp)
+	}
+
+	if err = rows.Err(); err != nil {
+		utils.Failed(c, http.StatusInternalServerError, "row iteration error")
+		return
+	}
+
+	utils.Success(c, employees)
+}
