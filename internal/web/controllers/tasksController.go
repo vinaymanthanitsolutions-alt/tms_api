@@ -16,6 +16,7 @@ import (
 
 // all check
 func CreateTask(c *gin.Context) {
+
 	var input models.CreateTaskRequest
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -25,6 +26,7 @@ func CreateTask(c *gin.Context) {
 
 	var deadline sql.NullString
 	if input.Deadline != "" {
+
 		t, err := time.Parse(time.RFC3339, input.Deadline)
 		if err != nil {
 			utils.Failed(c, http.StatusBadRequest, "Invalid deadline format. Use 2026-01-20T00:00:00Z")
@@ -35,38 +37,27 @@ func CreateTask(c *gin.Context) {
 		deadline = sql.NullString{Valid: false}
 	}
 
-	result, err := config.DB.Exec(`
+	query := `
 		INSERT INTO task_master
 		(project_id, team_id, task_title, task_description, assigned_to_employee_id, created_by_employee_id, task_deadline)
 		VALUES (?, ?, ?, ?, ?, ?, ?)
-	`, input.ProjectID, input.TeamID, input.Title, input.Description, input.AssignedTo, input.CreatedBy, deadline)
+	`
+
+	_, err := config.DB.Exec(
+		query,
+		input.ProjectID,
+		input.TeamID,
+		input.Title,
+		input.Description,
+		input.AssignedTo,
+		input.CreatedBy,
+		deadline,
+	)
+
 	if err != nil {
 		c.Error(err)
 		return
 	}
-
-	taskID, _ := result.LastInsertId()
-
-	var newTask models.TaskDetailResponse
-	var tDeadline sql.NullTime
-	err = config.DB.QueryRow(`
-		SELECT task_title, project_id, team_id, task_status, task_deadline, team_id, created_by_employee_id
-		FROM task_master
-		WHERE task_id = ?
-	`, taskID).Scan(
-		&newTask.Title,
-		&newTask.ProjectID,
-		&newTask.TeamID,
-		&newTask.Status,
-		&tDeadline,
-		&newTask.TeamLeaderID,
-		&newTask.CreatedByID,
-	)
-	if err == nil && tDeadline.Valid {
-		newTask.Deadline = &tDeadline.Time
-	}
-
-	services.LogCreate(c, "TASK", strconv.FormatInt(taskID, 10), newTask)
 
 	utils.Success(c, "Task created successfully")
 }
@@ -191,7 +182,6 @@ func GetTasksByProject(c *gin.Context) {
 func GetTasksByUser(c *gin.Context) {
 
 	empID := c.Param("emp_id")
-	// empID,  _ := c.Get("emp_id")
 
 	rows, err := config.DB.Query(`
 	SELECT task_id, task_title, task_status, project_id
@@ -277,43 +267,14 @@ func UpdateTaskStatus(c *gin.Context) {
 }
 
 func UpdateTask(c *gin.Context) {
+
 	taskID := c.Param("id")
 
 	var input models.UpdateTaskRequest
+
 	if err := c.ShouldBindJSON(&input); err != nil {
 		utils.Failed(c, http.StatusBadRequest, err.Error())
 		return
-	}
-
-	var oldTask models.TaskDetailResponse
-	var deadline sql.NullTime
-
-	err := config.DB.QueryRow(`
-		SELECT 
-			task_title,
-			project_id,
-			team_id,
-			task_status,
-			task_deadline,
-			team_id,
-			created_by_employee_id
-		FROM task_master
-		WHERE task_id = ?
-	`, taskID).Scan(
-		&oldTask.Title,
-		&oldTask.ProjectID,
-		&oldTask.TeamID,
-		&oldTask.Status,
-		&deadline,
-		&oldTask.TeamLeaderID,  
-		&oldTask.CreatedByID,
-	)
-	if err != nil {
-		utils.Failed(c, http.StatusNotFound, "Task not found")
-		return
-	}
-	if deadline.Valid {
-		oldTask.Deadline = &deadline.Time
 	}
 
 	query := "UPDATE task_master SET "
@@ -346,81 +307,27 @@ func UpdateTask(c *gin.Context) {
 	query = query[:len(query)-2] + " WHERE task_id = ?"
 	args = append(args, taskID)
 
-	_, err = config.DB.Exec(query, args...)
+	_, err := config.DB.Exec(query, args...)
 	if err != nil {
 		c.Error(err)
 		return
 	}
-
-	var newTask models.TaskDetailResponse
-	err = config.DB.QueryRow(`
-		SELECT 
-			task_title,
-			project_id,
-			team_id,
-			task_status,
-			task_deadline,
-			team_id,
-			created_by_employee_id
-		FROM task_master
-		WHERE task_id = ?
-	`, taskID).Scan(
-		&newTask.Title,
-		&newTask.ProjectID,
-		&newTask.TeamID,
-		&newTask.Status,
-		&deadline,
-		&newTask.TeamLeaderID,
-		&newTask.CreatedByID,
-	)
-	if err == nil && deadline.Valid {
-		newTask.Deadline = &deadline.Time
-	}
-
-	services.LogUpdate(c, "TASK", taskID, oldTask, newTask)
 
 	utils.Success(c, gin.H{"message": "Task updated successfully"})
 }
+
 func DeleteTask(c *gin.Context) {
+
 	taskID := c.Param("id")
 
-	var oldTask models.TaskDetailResponse
-	var deadline sql.NullTime
+	_, err := config.DB.Exec(`
+	DELETE FROM task_master WHERE task_id = ?
+`, taskID)
 
-	err := config.DB.QueryRow(`
-		SELECT 
-			task_title,
-			project_id,
-			team_id,
-			task_status,
-			task_deadline,
-			team_id,
-			created_by_employee_id
-		FROM task_master
-		WHERE task_id = ?
-	`, taskID).Scan(
-		&oldTask.Title,
-		&oldTask.ProjectID,
-		&oldTask.TeamID,
-		&oldTask.Status,
-		&deadline,
-		&oldTask.TeamLeaderID,   
-		&oldTask.CreatedByID,
-	)
-	if err != nil {
-		utils.Failed(c, http.StatusNotFound, "Task not found")
-		return
-	}
-	if deadline.Valid {
-		oldTask.Deadline = &deadline.Time
-	}
-
-	_, err = config.DB.Exec(`DELETE FROM task_master WHERE task_id = ?`, taskID)
 	if err != nil {
 		c.Error(err)
 		return
 	}
-	services.LogDelete(c, "TASK", taskID, oldTask)
 
 	utils.Success(c, gin.H{"message": "Task deleted successfully"})
 }

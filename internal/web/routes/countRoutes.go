@@ -14,4 +14,5 @@ func CountRouter(r *gin.Engine) {
 	r.GET("/taskCounts", controllers.GetTaskCounts)                       // used sarthak
 	r.GET("/queryCount", controllers.GetQueryCounts)                      // used by sarthak
 	r.GET("/empRoleCount", controllers.GetEmployeeCountsByRole)           // used by divya
+	r.GET("/adminAsWeek",controllers.GetAdminLast4Weeks)
 }

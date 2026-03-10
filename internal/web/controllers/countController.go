@@ -414,3 +414,78 @@ func GetEmployeeCountsByRole(c *gin.Context) {
 
 	utils.Success(c, response)
 }
+
+func GetAdminLast4Weeks(c *gin.Context) {
+
+	role := c.Query("role")
+
+	if role != "SUPER_ADMIN" {
+		utils.Failed(c, http.StatusUnauthorized, "Only Super Admin allowed")
+		return
+	}
+
+	query := `
+					WITH weeks AS (
+				SELECT 0 AS n
+				UNION ALL SELECT 1
+				UNION ALL SELECT 2
+				UNION ALL SELECT 3
+			)
+
+			SELECT 
+			CONCAT(
+			'Week ',
+			WEEK(d.week_start) - WEEK(DATE_SUB(d.week_start, INTERVAL DAYOFMONTH(d.week_start)-1 DAY)) + 1,
+			' ',
+			MONTHNAME(d.week_start)
+			) AS week_label,
+
+			COALESCE(SUM(CASE 
+				WHEN e.created_at BETWEEN d.week_start AND d.week_end 
+				THEN 1 END),0) AS admins_added,
+
+			COALESCE(SUM(CASE 
+				WHEN e.deleted_at BETWEEN d.week_start AND d.week_end 
+				THEN 1 END),0) AS admins_suspended
+
+			FROM (
+				SELECT 
+				DATE_SUB(CURDATE(), INTERVAL n WEEK) - INTERVAL WEEKDAY(DATE_SUB(CURDATE(), INTERVAL n WEEK)) DAY AS week_start,
+				DATE_SUB(CURDATE(), INTERVAL n WEEK) - INTERVAL WEEKDAY(DATE_SUB(CURDATE(), INTERVAL n WEEK)) DAY + INTERVAL 6 DAY AS week_end
+				FROM weeks
+			) d
+
+			LEFT JOIN employee_master e
+			ON e.employee_role='ADMIN'
+			AND (
+				e.created_at BETWEEN d.week_start AND d.week_end
+				OR e.deleted_at BETWEEN d.week_start AND d.week_end
+			)
+
+			GROUP BY d.week_start
+			ORDER BY d.week_start DESC
+		`
+
+	rows, err := config.DB.Query(query)
+	if err != nil {
+		utils.Failed(c, http.StatusInternalServerError, "Database error")
+		return
+	}
+	defer rows.Close()
+
+	type Result struct {
+		WeekLabel string `json:"week"`
+		Added     int    `json:"added"`
+		Suspended int    `json:"suspended"`
+	}
+
+	var results []Result
+
+	for rows.Next() {
+		var r Result
+		rows.Scan(&r.WeekLabel, &r.Added, &r.Suspended)
+		results = append(results, r)
+	}
+
+	utils.Success(c, results)
+}
