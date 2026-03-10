@@ -14,7 +14,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
-//ALL checked
+
+// ALL checked
 func CreateProject(c *gin.Context) {
 	var p models.CreateProjectRequest
 
@@ -236,7 +237,7 @@ func GetAllProjects(c *gin.Context) {
 			&progress,
 			&deadline,
 		); err != nil {
-			c.Error(err) 
+			c.Error(err)
 			return
 		}
 
@@ -286,7 +287,7 @@ func GetAllProjects(c *gin.Context) {
 	var total int
 	err = config.DB.QueryRow(countQuery, countArgs...).Scan(&total)
 	if err != nil {
-		c.Error(err) 
+		c.Error(err)
 		return
 	}
 
@@ -300,46 +301,45 @@ func GetAllProjects(c *gin.Context) {
 	utils.Success(c, response)
 }
 
-
 func AssignProjectManager(c *gin.Context) {
-    projectID := c.Param("project_id")
-    var data models.AssignPMRequest
-    if err := c.ShouldBindJSON(&data); err != nil {
-        utils.Failed(c, http.StatusBadRequest, "Invalid data")
-        return
-    }
+	projectID := c.Param("project_id")
+	var data models.AssignPMRequest
+	if err := c.ShouldBindJSON(&data); err != nil {
+		utils.Failed(c, http.StatusBadRequest, "Invalid data")
+		return
+	}
 
-    var currentPM sql.NullString
-    err := config.DB.QueryRow(
-        "SELECT project_manager_id FROM project_master WHERE project_id = ?",
-        projectID,
-    ).Scan(&currentPM)
-    if err != nil {
-        if err == sql.ErrNoRows {
-            utils.Failed(c, http.StatusNotFound, "Project not found")
-        } else {
-            c.Error(err)
-        }
-        return
-    }
+	var currentPM sql.NullString
+	err := config.DB.QueryRow(
+		"SELECT project_manager_id FROM project_master WHERE project_id = ?",
+		projectID,
+	).Scan(&currentPM)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			utils.Failed(c, http.StatusNotFound, "Project not found")
+		} else {
+			c.Error(err)
+		}
+		return
+	}
 
-    if currentPM.Valid && data.PMID != nil && currentPM.String == *data.PMID {
-        utils.Failed(c, http.StatusBadRequest, " This PM already choosen")
-        return
-    }
+	if currentPM.Valid && data.PMID != nil && currentPM.String == *data.PMID {
+		utils.Failed(c, http.StatusBadRequest, " This PM already choosen")
+		return
+	}
 
-    _, err = config.DB.Exec(
-        "UPDATE project_master SET project_manager_id=? WHERE project_id=?",
-        data.PMID,
-        projectID,
-    )
-    if err != nil {
-        log.Println("Assigning Problem : ", err)
-        c.Error(err)
-        return
-    }
+	_, err = config.DB.Exec(
+		"UPDATE project_master SET project_manager_id=? WHERE project_id=?",
+		data.PMID,
+		projectID,
+	)
+	if err != nil {
+		log.Println("Assigning Problem : ", err)
+		c.Error(err)
+		return
+	}
 
-    utils.Success(c, "PM assigned successfully")
+	utils.Success(c, "PM assigned successfully")
 }
 
 func GetProjectsByAdmin(c *gin.Context) {
@@ -575,7 +575,6 @@ func GetProjectsGroupedByManager(c *gin.Context) {
 		utils.Failed(c, http.StatusBadRequest, "manager_id is required")
 		return
 	}
-	
 
 	query := `
 		SELECT
@@ -622,7 +621,6 @@ func GetProjectsGroupedByManager(c *gin.Context) {
 			return
 		}
 
-
 		// IF PROJECT NOT EXISTS , CREATE IT
 		if _, exists := projectMap[projectID]; !exists {
 			projectMap[projectID] = &models.ProjectWithTL{
@@ -648,6 +646,142 @@ func GetProjectsGroupedByManager(c *gin.Context) {
 	var result []models.ProjectWithTL
 	for _, project := range projectMap {
 		result = append(result, *project)
+	}
+
+	utils.Success(c, result)
+}
+
+func GetProjectsWeeklyProgress(c *gin.Context) {
+
+	rows, err := config.DB.Query(`
+	WITH weeks AS (
+    SELECT 0 AS n
+    UNION ALL SELECT 1
+    UNION ALL SELECT 2
+    UNION ALL SELECT 3
+    UNION ALL SELECT 4
+)
+SELECT 
+    p.project_id,
+    p.project_title,
+    p.project_deadline,
+    w.n AS week_number,
+    COUNT(st.sub_task_id) AS completed_subtasks
+FROM project_master p
+CROSS JOIN weeks w
+LEFT JOIN task_master t 
+    ON t.project_id = p.project_id
+LEFT JOIN sub_task_master st
+    ON st.parent_task_id = t.task_id
+    AND st.sub_task_status = 'COMPLETED'
+    AND st.updated_at >= DATE_SUB(CURDATE(), INTERVAL (w.n+1)*7 DAY)
+    AND st.updated_at < DATE_SUB(CURDATE(), INTERVAL w.n*7 DAY)
+WHERE p.deleted_at IS NULL
+GROUP BY p.project_id, w.n
+ORDER BY p.project_deadline ASC, w.n ASC;
+	`)
+
+	if err != nil {
+		utils.Failed(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	
+
+	projectMap := map[string]*models.ProjectWeekly{}
+
+	for rows.Next() {
+
+		var pid, title string
+		var deadline time.Time
+		var week sql.NullInt64
+		var count int
+
+		rows.Scan(&pid, &title, &deadline, &week, &count)
+
+		if _, exists := projectMap[pid]; !exists {
+			projectMap[pid] = &models.ProjectWeekly{
+				ID:       pid,
+				Title:    title,
+				Deadline: deadline,
+			}
+		}
+
+		if week.Valid {
+			projectMap[pid].Progress = append(projectMap[pid].Progress, models.WeeklyProgress{
+				Week:  int(week.Int64),
+				Count: count,
+			})
+		}
+	}
+
+	var projects []models.ProjectWeekly
+	for _, p := range projectMap {
+		projects = append(projects, *p)
+	}
+
+	utils.Success(c, projects)
+}
+
+
+func GetMonthlyProjectStats(c *gin.Context) {
+
+	query := `
+	WITH months AS (
+    SELECT DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 11 MONTH), '%Y-%m') AS month
+    UNION ALL SELECT DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 10 MONTH), '%Y-%m')
+    UNION ALL SELECT DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 9 MONTH), '%Y-%m')
+    UNION ALL SELECT DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 8 MONTH), '%Y-%m')
+    UNION ALL SELECT DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 7 MONTH), '%Y-%m')
+    UNION ALL SELECT DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 6 MONTH), '%Y-%m')
+    UNION ALL SELECT DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 5 MONTH), '%Y-%m')
+    UNION ALL SELECT DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 4 MONTH), '%Y-%m')
+    UNION ALL SELECT DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 3 MONTH), '%Y-%m')
+    UNION ALL SELECT DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 2 MONTH), '%Y-%m')
+    UNION ALL SELECT DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m')
+    UNION ALL SELECT DATE_FORMAT(CURDATE(), '%Y-%m')
+)
+
+SELECT
+    m.month,
+    COUNT(p.project_id) AS total_projects,
+    COALESCE(SUM(p.project_progress),0) AS total_progress
+FROM months m
+LEFT JOIN project_master p
+    ON DATE_FORMAT(p.created_at,'%Y-%m') <= m.month
+    AND p.deleted_at IS NULL
+GROUP BY m.month
+ORDER BY m.month;
+	`
+
+	rows, err := config.DB.Query(query)
+	if err != nil {
+		utils.Failed(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	
+
+	var result []models.MonthlyStats
+
+	for rows.Next() {
+
+		var res models.MonthlyStats
+
+		if err := rows.Scan(
+			&res.Month,
+			&res.TotalProjects,
+			&res.TotalProgress,
+		); err != nil {
+
+			c.Error(err)
+			utils.Failed(c, http.StatusInternalServerError, "Failed to scan data")
+			return
+		}
+
+		result = append(result, res)
 	}
 
 	utils.Success(c, result)

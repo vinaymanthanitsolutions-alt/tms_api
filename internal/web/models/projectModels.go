@@ -50,3 +50,21 @@ type ProjectByPMResponse struct {
 	Status    string     `json:"status"`
 	Deadline  *time.Time `json:"deadline,omitempty"`
 }
+
+type WeeklyProgress struct {
+	Week  int `json:"week"`
+	Count int `json:"completed_subtasks"`
+}
+
+type ProjectWeekly struct {
+	ID       string           `json:"project_id"`
+	Title    string           `json:"project_title"`
+	Deadline time.Time        `json:"project_deadline"`
+	Progress []WeeklyProgress `json:"weekly_progress"`
+}
+
+type MonthlyStats struct {
+	Month         string `json:"month"`
+	TotalProjects int    `json:"total_projects"`
+	TotalProgress int    `json:"total_progress"`
+}

@@ -20,4 +20,6 @@ func ProjectRoutes(r *gin.Engine) {
 	project.GET("/admin", controllers.GetProjectsByAdmin) //using by sarthak we have to add progress section //check!!!
 	project.GET("/details", controllers.GetProjectTeamDetails) // used vansh
 	project.GET("/reportAsPM",controllers.GetProjectsGroupedByManager)
+	project.GET("/weeklyReport",controllers.GetProjectsWeeklyProgress) //will used by sarthak
+	project.GET("/monthlyStats",controllers.GetMonthlyProjectStats)
 }

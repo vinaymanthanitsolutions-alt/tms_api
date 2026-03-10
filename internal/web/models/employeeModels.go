@@ -60,4 +60,5 @@ type LatestEmployee struct {
 	EmpRole string `json:"emp_role"`
 	EmpDepartment string `json:"emp_department"`
 	CreatedAt *string `json:"created_at"`
+	EmpStatus string `json:"emp_status"`
 }

@@ -501,7 +501,8 @@ func GetLatestEmployee(c *gin.Context) {
 		e.employee_name,
 		e.employee_role,
 		e.employee_department,
-		e.created_at
+		e.created_at,
+		e.employee_status
 	FROM employee_master e
 	WHERE ` + condition + `
 	ORDER BY e.created_at DESC
@@ -535,6 +536,7 @@ func GetLatestEmployee(c *gin.Context) {
 			&emp.EmpRole,
 			&emp.EmpDepartment,
 			&emp.CreatedAt,
+			&emp.EmpStatus,
 		)
 
 		if err != nil {
