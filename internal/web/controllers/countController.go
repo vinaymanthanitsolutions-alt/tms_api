@@ -66,23 +66,24 @@ func GetProjectCounts(c *gin.Context) {
 	query := `
 		SELECT
 			COUNT(*) AS total,
-			COALESCE(SUM(project_status = 'PLANNING'), 0),
-			COALESCE(SUM(project_status = 'ACTIVE'), 0),
-			COALESCE(SUM(project_status = 'COMPLETED'), 0)
+			COALESCE(SUM(CASE WHEN project_status = 'PLANNING' THEN 1 ELSE 0 END), 0) AS planning,
+			COALESCE(SUM(CASE WHEN project_status = 'ACTIVE' THEN 1 ELSE 0 END), 0) AS active,
+			COALESCE(SUM(CASE WHEN project_status = 'COMPLETED' THEN 1 ELSE 0 END), 0) AS completed,
+			COALESCE(SUM(CASE WHEN project_status != 'COMPLETED' AND project_deadline < NOW() THEN 1 ELSE 0 END), 0) AS overdue
 		FROM project_master
 	`
 
 	if pmID != "" {
 		query += " WHERE project_manager_id = ?"
 		err = config.DB.QueryRow(query, pmID).
-			Scan(&response.TotalProjects, &response.Planning, &response.Active, &response.Completed)
+			Scan(&response.TotalProjects, &response.Planning, &response.Active, &response.Completed, &response.Overdue)
 	} else if adminID != "" {
 		query += " WHERE project_created_by = ?"
 		err = config.DB.QueryRow(query, adminID).
-			Scan(&response.TotalProjects, &response.Planning, &response.Active, &response.Completed)
+			Scan(&response.TotalProjects, &response.Planning, &response.Active, &response.Completed, &response.Overdue)
 	} else {
 		err = config.DB.QueryRow(query).
-			Scan(&response.TotalProjects, &response.Planning, &response.Active, &response.Completed)
+			Scan(&response.TotalProjects, &response.Planning, &response.Active, &response.Completed, &response.Overdue)
 	}
 
 	if err != nil {

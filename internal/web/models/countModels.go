@@ -13,6 +13,7 @@ type ProjectCountsResponse struct {
 	Planning      int `json:"planning"`
 	Active        int `json:"active"`
 	Completed     int `json:"completed"`
+	Overdue       int `json:"overdue"`
 }
 
 type TeamCountsResponse struct {

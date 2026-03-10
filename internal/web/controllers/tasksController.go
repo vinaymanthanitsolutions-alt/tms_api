@@ -37,23 +37,11 @@ func CreateTask(c *gin.Context) {
 		deadline = sql.NullString{Valid: false}
 	}
 
-	query := `
+	_, err := config.DB.Exec(`
 		INSERT INTO task_master
 		(project_id, team_id, task_title, task_description, assigned_to_employee_id, created_by_employee_id, task_deadline)
 		VALUES (?, ?, ?, ?, ?, ?, ?)
-	`
-
-	_, err := config.DB.Exec(
-		query,
-		input.ProjectID,
-		input.TeamID,
-		input.Title,
-		input.Description,
-		input.AssignedTo,
-		input.CreatedBy,
-		deadline,
-	)
-
+	`, input.ProjectID, input.TeamID, input.Title, input.Description, input.AssignedTo, input.CreatedBy, deadline)
 	if err != nil {
 		c.Error(err)
 		return
